@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-300 overflow-hidden;
+    font-family: "Inter", "Noto Sans TC", "Microsoft JhengHei", "Heiti TC",
+      sans-serif;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-surface-light dark:bg-surface-dark;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-[#2D2D35] rounded-sm;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary;
+}
+
+/* Scanlines Effect */
+.scanlines {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0) 50%,
+    rgba(0, 0, 0, 0.05) 50%,
+    rgba(0, 0, 0, 0.05)
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  mix-blend-mode: overlay;
+  opacity: 0.5;
+}

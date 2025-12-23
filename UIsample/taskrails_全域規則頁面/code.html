@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html class="dark" lang="zh-Hant"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TaskRails 全域規則頁面</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+    }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+  </style>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#f97706",
+            "background-light": "#f8f7f5",
+            "background-dark": "#181411", 
+          },
+          fontFamily: {
+            "display": ["Space Grotesk", "sans-serif"]
+          },
+          borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+        },
+      },
+    }
+  </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#E5E5E5]">
+<div class="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<div class="flex flex-1 justify-center py-5">
+<div class="layout-content-container flex w-full max-w-6xl flex-col px-4 sm:px-6 lg:px-8">
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-white/10 px-4 py-4 lg:px-6">
+<div class="flex items-center gap-4 text-white">
+<div class="size-6">
+<svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path clip-rule="evenodd" d="M24 4H42V17.3333V30.6667H24V44H6V30.6667V17.3333H24V4Z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+<h2 class="text-white text-xl font-bold leading-tight tracking-[-0.015em]">TaskRails</h2>
+</div>
+</header>
+<main class="flex-1 py-8">
+<div class="mb-8 flex flex-col items-start gap-4 px-4 sm:flex-row sm:items-center sm:justify-between lg:px-6">
+<h1 class="text-white text-4xl font-black leading-tight tracking-[-0.033em]">全域規則</h1>
+<button class="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] transition-opacity hover:opacity-90">
+<span class="material-symbols-outlined text-base">add</span>
+<span class="truncate">新增規則</span>
+</button>
+</div>
+<div class="mb-6 flex flex-col items-stretch gap-3 px-4 sm:flex-row sm:items-center sm:justify-between lg:px-6">
+<div class="relative w-full sm:max-w-xs">
+<div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+<span class="material-symbols-outlined text-white/50">search</span>
+</div>
+<input class="w-full rounded-lg border border-white/20 bg-white/5 py-2 pl-10 pr-4 text-white placeholder-white/50 focus:border-primary focus:ring-1 focus:ring-primary" placeholder="搜尋規則名稱..." type="text"/>
+</div>
+<div class="flex gap-2">
+<button class="flex h-10 items-center justify-center gap-2 rounded-lg bg-white/10 px-4 text-sm text-white hover:bg-white/20">
+<span class="material-symbols-outlined text-base">filter_list</span>
+<span>所有狀態</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-1 gap-6 px-4 @container lg:px-6">
+<div class="group relative flex flex-col overflow-hidden rounded-xl border border-primary/50 bg-[#2C2C2C]/30 backdrop-blur-sm transition-all hover:border-primary/80 hover:shadow-lg hover:shadow-primary/10">
+<div class="absolute left-0 top-0 h-full w-1.5 bg-primary"></div>
+<div class="flex flex-col gap-4 p-6 sm:flex-row sm:items-start sm:justify-between">
+<div class="flex-1">
+<h3 class="text-lg font-bold text-white">自動封存已完成的任務</h3>
+<p class="mt-1 text-sm text-white/60">當任務狀態被標記為「已完成」後，系統將在 24 小時後自動將其封存，以保持工作區整潔。</p>
+<div class="mt-4 flex flex-wrap items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-base text-primary">bolt</span>
+<span class="text-xs font-medium text-white/80">觸發:</span>
+<span class="inline-flex items-center rounded-md bg-primary/20 px-2.5 py-1 text-sm font-medium text-primary">任務狀態變更</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-base text-white/50">play_arrow</span>
+<span class="text-xs font-medium text-white/80">執行:</span>
+<span class="inline-flex items-center rounded-md bg-white/20 px-2.5 py-1 text-sm font-medium text-white/80">封存</span>
+</div>
+</div>
+</div>
+<div class="flex shrink-0 flex-row items-center gap-4 sm:flex-col sm:items-end">
+<div class="flex items-center gap-2">
+<span class="text-sm font-medium text-primary">已啟用</span>
+<label class="relative inline-flex cursor-pointer items-center">
+<input checked="" class="peer sr-only" type="checkbox" value=""/>
+<div class="peer h-6 w-11 rounded-full bg-white/20 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border-none after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50"></div>
+</label>
+</div>
+<div class="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+<button class="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-white/20 hover:text-white"><span class="material-symbols-outlined text-xl">edit</span></button>
+<button class="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-red-500/20 hover:text-red-500"><span class="material-symbols-outlined text-xl">delete</span></button>
+</div>
+</div>
+</div>
+<div class="border-t border-white/10 bg-black/20 px-6 py-2 text-right">
+<p class="text-xs text-white/50">上次修改: 2023-10-27 15:40</p>
+</div>
+</div>
+<div class="group relative flex flex-col overflow-hidden rounded-xl border border-primary/50 bg-[#2C2C2C]/30 backdrop-blur-sm transition-all hover:border-primary/80 hover:shadow-lg hover:shadow-primary/10">
+<div class="absolute left-0 top-0 h-full w-1.5 bg-primary"></div>
+<div class="flex flex-col gap-4 p-6 sm:flex-row sm:items-start sm:justify-between">
+<div class="flex-1">
+<h3 class="text-lg font-bold text-white">新任務指派通知</h3>
+<p class="mt-1 text-sm text-white/60">當有新任務被指派給團隊成員時，立即透過應用程式內通知和電子郵件發送提醒。</p>
+<div class="mt-4 flex flex-wrap items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-base text-primary">bolt</span>
+<span class="text-xs font-medium text-white/80">觸發:</span>
+<span class="inline-flex items-center rounded-md bg-primary/20 px-2.5 py-1 text-sm font-medium text-primary">新任務建立</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-base text-white/50">play_arrow</span>
+<span class="text-xs font-medium text-white/80">執行:</span>
+<span class="inline-flex items-center rounded-md bg-white/20 px-2.5 py-1 text-sm font-medium text-white/80">發送通知</span>
+</div>
+</div>
+</div>
+<div class="flex shrink-0 flex-row items-center gap-4 sm:flex-col sm:items-end">
+<div class="flex items-center gap-2">
+<span class="text-sm font-medium text-primary">已啟用</span>
+<label class="relative inline-flex cursor-pointer items-center">
+<input checked="" class="peer sr-only" type="checkbox" value=""/>
+<div class="peer h-6 w-11 rounded-full bg-white/20 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border-none after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50"></div>
+</label>
+</div>
+<div class="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+<button class="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-white/20 hover:text-white"><span class="material-symbols-outlined text-xl">edit</span></button>
+<button class="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-red-500/20 hover:text-red-500"><span class="material-symbols-outlined text-xl">delete</span></button>
+</div>
+</div>
+</div>
+<div class="border-t border-white/10 bg-black/20 px-6 py-2 text-right">
+<p class="text-xs text-white/50">上次修改: 2023-10-26 11:20</p>
+</div>
+</div>
+<div class="group relative flex flex-col overflow-hidden rounded-xl border border-white/20 bg-[#2C2C2C]/30 backdrop-blur-sm transition-all hover:border-white/40 hover:shadow-lg hover:shadow-white/5">
+<div class="absolute left-0 top-0 h-full w-1.5 bg-white/30"></div>
+<div class="flex flex-col gap-4 p-6 sm:flex-row sm:items-start sm:justify-between">
+<div class="flex-1">
+<h3 class="text-lg font-bold text-white">標記高優先級任務</h3>
+<p class="mt-1 text-sm text-white/60">對於 24 小時內即將到期的任務，自動添加「高優先級」標籤以提醒團隊成員。</p>
+<div class="mt-4 flex flex-wrap items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-base text-primary">bolt</span>
+<span class="text-xs font-medium text-white/80">觸發:</span>
+<span class="inline-flex items-center rounded-md bg-primary/20 px-2.5 py-1 text-sm font-medium text-primary">任務截止日期 &lt; 24小時</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-base text-white/50">play_arrow</span>
+<span class="text-xs font-medium text-white/80">執行:</span>
+<span class="inline-flex items-center rounded-md bg-white/20 px-2.5 py-1 text-sm font-medium text-white/80">新增標籤</span>
+</div>
+</div>
+</div>
+<div class="flex shrink-0 flex-row items-center gap-4 sm:flex-col sm:items-end">
+<div class="flex items-center gap-2">
+<span class="text-sm font-medium text-white/60">已停用</span>
+<label class="relative inline-flex cursor-pointer items-center">
+<input class="peer sr-only" type="checkbox" value=""/>
+<div class="peer h-6 w-11 rounded-full bg-white/20 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:border-none after:bg-white after:transition-all after:content-[''] peer-checked:bg-primary peer-checked:after:translate-x-full peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/50"></div>
+</label>
+</div>
+<div class="flex items-center gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+<button class="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-white/20 hover:text-white"><span class="material-symbols-outlined text-xl">edit</span></button>
+<button class="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-white/60 transition-colors hover:bg-red-500/20 hover:text-red-500"><span class="material-symbols-outlined text-xl">delete</span></button>
+</div>
+</div>
+</div>
+<div class="border-t border-white/10 bg-black/20 px-6 py-2 text-right">
+<p class="text-xs text-white/50">上次修改: 2023-10-25 09:00</p>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</div>
+</div>
+
+</body></html>

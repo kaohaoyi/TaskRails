@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TaskRails 編輯規則模態窗</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&amp;family=Noto+Sans+TC:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#137fec",
+            "background-light": "#f6f7f8",
+            "background-dark": "#101922",
+          },
+          fontFamily: {
+            "display": ["Space Grotesk", "Noto Sans TC", "sans-serif"]
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+        },
+      },
+    }
+  </script>
+<style>
+    body {
+      font-family: 'Space Grotesk', 'Noto Sans TC', sans-serif;
+    }
+
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+  </style>
+</head>
+<body class="bg-background-dark/80 dark font-display">
+<div class="relative flex min-h-screen w-full flex-col items-center justify-center p-4" data-alt="Dark abstract gradient background for modal overlay">
+<div class="flex w-full max-w-3xl flex-col rounded-xl border border-white/10 bg-[#111418] shadow-2xl">
+<!-- Modal Header -->
+<div class="flex items-center justify-between border-b border-white/10 p-4">
+<p class="text-xl font-bold text-white">編輯規則</p>
+<button class="flex h-8 w-8 items-center justify-center rounded-full text-[#9dabb9] transition-colors hover:bg-white/10 hover:text-white">
+<span class="material-symbols-outlined text-2xl">close</span>
+</button>
+</div>
+<!-- Modal Content -->
+<div class="flex flex-col gap-6 p-6">
+<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+<label class="flex flex-col">
+<p class="pb-2 text-base font-medium leading-normal text-white">規則名稱</p>
+<input class="form-input h-12 w-full flex-1 resize-none overflow-hidden rounded-lg border-none bg-[#283039] p-3 text-base font-normal leading-normal text-white placeholder:text-[#9dabb9] focus:outline-0 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-transparent" value="Auto-archive old tasks"/>
+</label>
+<div class="flex flex-col">
+<p class="pb-2 text-base font-medium leading-normal text-white">狀態</p>
+<div class="flex h-12 items-center justify-between rounded-lg bg-[#283039] px-4">
+<p class="text-base font-normal leading-normal text-white">啟用</p>
+<label class="relative flex h-[31px] w-[51px] cursor-pointer items-center rounded-full border-none bg-[#101922] p-0.5 has-[:checked]:bg-primary">
+<div class="h-full w-[27px] transform rounded-full bg-white transition-transform checked:translate-x-[20px]" style="box-shadow: rgba(0, 0, 0, 0.15) 0px 3px 8px, rgba(0, 0, 0, 0.06) 0px 3px 1px;"></div>
+<input checked="" class="invisible absolute" type="checkbox"/>
+</label>
+</div>
+</div>
+</div>
+<label class="flex flex-col">
+<p class="pb-2 text-base font-medium leading-normal text-white">簡要描述</p>
+<textarea class="form-input min-h-24 w-full flex-1 resize-y overflow-hidden rounded-lg border-none bg-[#283039] p-3 text-base font-normal leading-normal text-white placeholder:text-[#9dabb9] focus:outline-0 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-transparent">Automatically archive tasks that have been in the 'Done' column for more than 30 days.</textarea>
+</label>
+<label class="flex flex-col">
+<p class="pb-2 text-base font-medium leading-normal text-white">觸發條件</p>
+<textarea class="form-input min-h-36 w-full flex-1 resize-y overflow-hidden rounded-lg border-none bg-[#101922] p-4 font-mono text-sm leading-normal text-[#cdd4de] placeholder:text-[#9dabb9] focus:outline-0 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-transparent">when task.status changes to 'Done'
+and task.updated_at &lt; now() - 30d</textarea>
+</label>
+<label class="flex flex-col">
+<p class="pb-2 text-base font-medium leading-normal text-white">執行動作</p>
+<textarea class="form-input min-h-36 w-full flex-1 resize-y overflow-hidden rounded-lg border-none bg-[#101922] p-4 font-mono text-sm leading-normal text-[#cdd4de] placeholder:text-[#9dabb9] focus:outline-0 focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-transparent">action: archive_task
+params: {
+  task_id: task.id
+}</textarea>
+</label>
+</div>
+<!-- Modal Footer -->
+<div class="flex items-center justify-end gap-3 border-t border-white/10 p-4">
+<button class="flex h-10 items-center justify-center rounded-lg bg-transparent px-4 text-sm font-semibold text-white transition-colors hover:bg-white/10">取消</button>
+<button class="flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-white transition-opacity hover:opacity-90">保存變更</button>
+</div>
+</div>
+</div>
+</body></html>
