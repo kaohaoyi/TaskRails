@@ -139,7 +139,7 @@ export default function EngineeringPage({ type, tasks = [], onShowToast }: Engin
                     <div className="space-y-4">
                         {issueTasks.length === 0 ? (
                             <div className="text-center py-12 bg-black/20 rounded-lg border border-dashed border-border-dark text-gray-600">
-                                目前沒有標示為 BUG 的任務。
+                                {t.engineering.noIssues}
                             </div>
                         ) : (
                             <div className="grid gap-3">
@@ -176,7 +176,7 @@ export default function EngineeringPage({ type, tasks = [], onShowToast }: Engin
                         <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
                             {activities.length === 0 ? (
                                 <div className="text-center py-12 text-gray-600">
-                                    尚無操作紀錄
+                                    {t.engineering.noHistory}
                                 </div>
                             ) : (
                                 <div className="divide-y divide-border-dark/50">
@@ -206,7 +206,7 @@ export default function EngineeringPage({ type, tasks = [], onShowToast }: Engin
                 {type === 'commits' && (
                     <div className="flex flex-col items-center justify-center py-20 opacity-30">
                         <GitCommit size={48} className="mb-4 text-blue-500" />
-                        <p className="text-gray-500 text-sm">Git 提交紀錄整合開發中...</p>
+                        <p className="text-gray-500 text-sm">{t.engineering.commitsDeveloping}</p>
                     </div>
                 )}
             </div>

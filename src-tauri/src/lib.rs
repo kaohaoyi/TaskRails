@@ -13,6 +13,24 @@ mod utils;
 use state_machine::StateManager;
 use tauri::Manager;
 
+pub fn run_mcp_stdio() {
+    tauri::Builder::default()
+        .setup(|app| {
+            let handle = app.handle().clone();
+            let db_state = db::init(&handle).expect("Failed to init DB");
+            app.manage(db_state);
+            app.manage(StateManager::new());
+
+            let handle_for_stdio = handle.clone();
+            tauri::async_runtime::spawn(async move {
+                mcp::stdio::start_stdio_server(handle_for_stdio).await;
+            });
+            Ok(())
+        })
+        .run(tauri::generate_context!())
+        .expect("error while running mcp-stdio");
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -22,9 +40,10 @@ pub fn run() {
             let db_state = db::init(app.handle())?;
             app.manage(db_state);
 
+            let handle = app.handle().clone();
             // Spawn MCP SSE Server
-            tauri::async_runtime::spawn(async {
-                mcp::sse::start_sse_server().await;
+            tauri::async_runtime::spawn(async move {
+                mcp::sse::start_sse_server(handle).await;
             });
 
             Ok(())
@@ -50,11 +69,15 @@ pub fn run() {
             commands::set_setting,
             commands::pick_folder,
             commands::write_workspace_file,
+            commands::read_workspace_file,
             commands::save_md_file,
             commands::execute_ide_command,
             commands::log_activity,
             commands::get_activity,
-            commands::execute_ai_chat
+            commands::execute_ai_chat,
+            commands::get_project_spec,
+            commands::update_project_spec,
+            commands::open_chat_window
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

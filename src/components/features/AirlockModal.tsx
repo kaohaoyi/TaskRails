@@ -1,5 +1,6 @@
 import { ShieldAlert, X, Check, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "../../hooks/useTranslation";
 
 interface AirlockModalProps {
     isOpen: boolean;
@@ -9,6 +10,7 @@ interface AirlockModalProps {
 }
 
 export default function AirlockModal({ isOpen, onClose, onApprove, onReject }: AirlockModalProps) {
+    const t = useTranslation().airlock;
     const [visible, setVisible] = useState(false);
 
     useEffect(() => {
@@ -29,7 +31,7 @@ export default function AirlockModal({ isOpen, onClose, onApprove, onReject }: A
                 <div className="h-14 border-b border-red-900/30 bg-red-950/20 flex items-center justify-between px-6">
                     <div className="flex items-center gap-3 text-red-500">
                         <ShieldAlert size={24} />
-                        <span className="font-mono text-lg font-bold tracking-widest uppercase">氣閘控制 // 代碼審查協定</span>
+                        <span className="font-mono text-lg font-bold tracking-widest uppercase">{t.title}</span>
                     </div>
                     <button onClick={onClose} className="text-red-500/50 hover:text-red-500 transition-colors">
                         <X size={24} />
@@ -52,7 +54,6 @@ export default function AirlockModal({ isOpen, onClose, onApprove, onReject }: A
                         <div className="text-green-400 bg-green-900/10">+{'            app.manage(db_state);'}</div>
                         <div className="text-green-400 bg-green-900/10">+</div>
                         <div className="text-green-400 bg-green-900/10">+{'            // Spawn MCP SSE Server'}</div>
-                        <div className="text-green-400 bg-green-900/10">+{'            tauri::async_runtime::spawn(async {'}</div>
                         <div className="text-green-400 bg-green-900/10">+{'                mcp::sse::start_sse_server().await;'}</div>
                         <div className="text-green-400 bg-green-900/10">+{'            });'}</div>
                         <div className="text-gray-400">{'             Ok(())'}</div>
@@ -63,16 +64,16 @@ export default function AirlockModal({ isOpen, onClose, onApprove, onReject }: A
                 {/* Footer Actions */}
                 <div className="h-20 border-t border-border-dark bg-background-dark flex items-center justify-end px-6 gap-4">
                     <div className="mr-auto text-xs font-mono text-gray-500">
-                        等待批准 • TOKEN 使用量: 1240 TOKENS • 風險: 中
+                        {t.status.pending} • {t.status.usage}: 1240 TOKENS • {t.status.risk}: {t.risks.medium}
                     </div>
                     
                     <button onClick={onReject} className="flex items-center gap-2 px-6 py-3 rounded border border-red-500/30 text-red-500 hover:bg-red-500/10 transition-colors font-bold tracking-wider">
                         <XCircle size={18} />
-                        拒絕
+                        {t.actions.reject}
                     </button>
                     <button onClick={onApprove} className="flex items-center gap-2 px-8 py-3 rounded bg-green-600 hover:bg-green-500 text-white shadow-[0_0_20px_rgba(22,163,74,0.3)] transition-colors font-bold tracking-wider">
                         <Check size={18} />
-                        批准變更
+                        {t.actions.approve}
                     </button>
                 </div>
             </div>

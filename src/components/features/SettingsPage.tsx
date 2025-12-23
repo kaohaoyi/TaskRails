@@ -4,17 +4,7 @@ import clsx from 'clsx';
 import { useTranslation, setLanguage, getLanguage, LanguageCode } from '../../hooks/useTranslation';
 import { invoke } from '@tauri-apps/api/core';
 
-const providerModels: Record<string, string[]> = {
-    openrouter: ['auto', 'openai/gpt-5.2-instant', 'anthropic/claude-4.5-opus', 'google/gemini-3-pro', 'deepseek/deepseek-v3.2'],
-    openai: ['gpt-5.2-professional', 'gpt-5.2-thinking', 'gpt-5.2-instant', 'o3-mini', 'gpt-4o'],
-    anthropic: ['claude-4.5-opus', 'claude-4.5-sonnet', 'claude-4.5-haiku'],
-    google: ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'],
-    xai: ['grok-4.1-emotional', 'grok-4.1-fast', 'grok-2.5'],
-    together: ['deepseek/deepseek-v3', 'meta-llama/Llama-4-70b-instruct', 'moonshotai/Kimi-K2-Thinking'],
-    huggingface: ['mistralai/Mistral-v5-7B', 'meta-llama/Llama-4-8B-Instruct', 'google/gemma-3-9b'],
-    deepseek: ['deepseek-v3.2-speciale', 'deepseek-v3.2', 'deepseek-math-v2'],
-    ollama: ['llama4', 'mistral-v5', 'deepseek-v3.2', 'phi-4']
-};
+import { PROVIDER_MODELS } from '../../constants/ai-models';
 
 export default function SettingsPage() {
     const [language, setUiLanguage] = useState<LanguageCode>(getLanguage());
@@ -69,6 +59,11 @@ export default function SettingsPage() {
 
     useEffect(() => {
         setApiKey(storedKeys[selectedProvider] || '');
+        // Auto-switch model when provider changes to prevent invalid model names
+        const defaults = PROVIDER_MODELS[selectedProvider];
+        if (defaults && defaults.length > 0) {
+             setModel(defaults[0]);
+        }
     }, [selectedProvider, storedKeys]);
 
     const handleSaveAiSettings = async () => {
@@ -256,9 +251,9 @@ export default function SettingsPage() {
                                         value={model}
                                         onChange={(e) => setModel(e.target.value)}
                                     >
-                                        {(providerModels[selectedProvider] || []).map(m => (
-                                            <option key={m} value={m} className="bg-[#1A1A1F] text-gray-100">{m}</option>
-                                        ))}
+                                    {(PROVIDER_MODELS[selectedProvider] || []).map(m => (
+                                        <option key={m} value={m} className="bg-[#1A1A1F] text-gray-100">{m}</option>
+                                    ))}
                                     </select>
                                 )}
                             </div>

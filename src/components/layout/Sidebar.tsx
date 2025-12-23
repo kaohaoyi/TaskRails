@@ -1,6 +1,6 @@
-import { LayoutDashboard, ClipboardList, Settings, History, Bug, GitCommit, Users, FileText } from "lucide-react";
-import logo from "../../assets/LOGO.png"; // Full Logo
+import { LayoutDashboard, ClipboardList, Settings, History, Bug, GitCommit, Users, FileText, BookOpen } from "lucide-react";
 import { useTranslation } from "../../hooks/useTranslation";
+import clsx from "clsx";
 
 interface SidebarProps {
     currentView: string;
@@ -11,46 +11,61 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
   const t = useTranslation().sidebar;
 
   return (
-    <aside className="w-64 bg-surface-dark border-r border-border-dark flex flex-col shrink-0 z-10 pt-[32px]">
-        <div className="px-4 mb-6 mt-2">
-            <img src={logo} alt="TaskRails" className="h-8 object-contain" />
+    <aside className="w-64 bg-[#0A0A0C] border-r border-white/5 flex flex-col shrink-0 z-10 pt-8 shadow-[10px_0_30px_rgba(0,0,0,0.2)]">
+        <div className="px-6 mb-10 group cursor-pointer" onClick={() => onNavigate('kanban')}>
+            <div className="h-12 flex items-center justify-start overflow-hidden group-hover:scale-[1.02] transition-transform duration-500">
+                <img src="/LOGO.png" alt="TaskRails" className="h-full w-auto object-contain" />
+            </div>
         </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1 text-sm">
-        <div className="px-2 mb-2 text-xs font-bold text-gray-500 tracking-widest flex items-center justify-between">
-          <span>{t.main}</span>
-          <span className="w-1.5 h-1.5 bg-green-500 rounded-full shadow-[0_0_5px_rgba(34,197,94,0.6)]"></span>
+      <nav className="flex-1 overflow-y-auto px-3 space-y-6 custom-scrollbar">
+        <div>
+           <div className="px-3 mb-3 flex items-center justify-between">
+              <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">Management</span>
+              <span className="w-1 h-1 bg-primary rounded-full animate-glow"></span>
+           </div>
+           
+            <div className="space-y-1">
+                <NavItem active={currentView === 'manual'} icon={BookOpen} label={t.manual} onClick={() => onNavigate('manual')} />
+                <NavItem active={currentView === 'specs'} icon={FileText} label={t.specs} onClick={() => onNavigate('specs')} />
+                <NavItem active={currentView === 'roleSettings'} icon={Users} label={t.roleSettings} onClick={() => onNavigate('roleSettings')} />
+                <NavItem active={currentView === 'kanban'} icon={LayoutDashboard} label={t.kanban} onClick={() => onNavigate('kanban')} />
+                <NavItem active={currentView === 'missions'} icon={ClipboardList} label={t.missions} onClick={() => onNavigate('missions')} />
+            </div>
         </div>
         
-        <NavItem active={currentView === 'specs'} icon={FileText} label={t.specs} onClick={() => onNavigate('specs')} />
-        <NavItem active={currentView === 'roleSettings'} icon={Users} label={t.roleSettings} onClick={() => onNavigate('roleSettings')} />
-        <NavItem active={currentView === 'kanban'} icon={LayoutDashboard} label={t.kanban} onClick={() => onNavigate('kanban')} />
-        <NavItem active={currentView === 'missions'} icon={ClipboardList} label={t.missions} onClick={() => onNavigate('missions')} />
-        
-        <div className="mt-6 mb-2 px-2 text-xs font-bold text-gray-500 tracking-widest flex items-center justify-between border-t border-border-dark pt-4">
-          <span>{t.engineering}</span>
+        <div>
+           <div className="px-3 mb-3">
+              <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">{t.engineering}</span>
+           </div>
+           
+           <div className="space-y-1">
+               <NavItem active={currentView === 'issues'} icon={Bug} label={t.issues} onClick={() => onNavigate('issues')} />
+               <NavItem active={currentView === 'commits'} icon={GitCommit} label={t.commits} onClick={() => onNavigate('commits')} />
+               <NavItem active={currentView === 'history'} icon={History} label={t.history} onClick={() => onNavigate('history')} />
+           </div>
         </div>
-        
-        <NavItem active={currentView === 'issues'} icon={Bug} label={t.issues} onClick={() => onNavigate('issues')} />
-        <NavItem active={currentView === 'commits'} icon={GitCommit} label={t.commits} onClick={() => onNavigate('commits')} />
-        <NavItem active={currentView === 'history'} icon={History} label={t.history} onClick={() => onNavigate('history')} />
       </nav>
 
-      {/* User / Bottom */}
-      <div className="border-t border-border-dark bg-[#111115] p-3">
+      {/* Footer / System Status */}
+      <div className="p-4 border-t border-white/5 bg-[#0F0F12]">
         <div 
-            className={`flex items-center gap-3 hover:bg-white/5 p-2 rounded cursor-pointer transition-colors group ${currentView === 'settings' ? 'bg-white/5' : ''}`}
+            className={clsx(
+               "flex items-center gap-4 p-3 rounded-xl transition-all duration-300 group cursor-pointer",
+               currentView === 'settings' ? "bg-primary/10 border border-primary/20 shadow-[0_0_15px_rgba(242,153,74,0.05)]" : "hover:bg-white/5 border border-transparent"
+            )}
             onClick={() => onNavigate('settings')}
         >
-            <div className="w-8 h-8 rounded bg-gray-700 overflow-hidden border border-gray-600 group-hover:border-primary/50">
-                <img src={logo} alt="User" className="w-full h-full object-contain p-1" />
+            <div className="w-8 h-8 rounded-lg bg-gray-800 border border-white/5 flex items-center justify-center group-hover:border-primary/50 transition-colors">
+                <Settings size={16} className={clsx("transition-transform duration-500 group-hover:rotate-90", currentView === 'settings' ? "text-primary" : "text-gray-500")} />
             </div>
             <div className="flex-1 min-w-0">
-                <div className="text-xs font-bold text-gray-200 truncate group-hover:text-primary">{t.admin}</div>
-                <div className="text-[10px] text-gray-500">{t.system_op}</div>
+                <div className={clsx("text-[11px] font-black uppercase tracking-wider transition-colors", currentView === 'settings' ? "text-primary" : "text-gray-300 group-hover:text-white")}>
+                    {t.admin}
+                </div>
+                <div className="text-[9px] font-bold text-gray-600 uppercase tracking-tighter">Status: Nominal</div>
             </div>
-            <Settings size={14} className="text-gray-500 group-hover:text-primary" />
         </div>
       </div>
     </aside>
@@ -59,14 +74,34 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
 
 function NavItem({ icon: Icon, label, active, badge, onClick }: { icon: any, label: string, active?: boolean, badge?: string, onClick?: () => void }) {
     return (
-        <a href="#" onClick={(e) => { e.preventDefault(); onClick?.(); }} className={`flex items-center gap-3 px-3 py-2 rounded border-l-2 transition-all group ${
-            active 
-            ? "bg-primary/10 text-primary border-primary" 
-            : "text-gray-400 hover:bg-white/5 hover:text-gray-200 border-transparent"
-        }`}>
-            <Icon size={18} className={active ? "" : "group-hover:text-primary transition-colors"} />
-            <span className="font-medium tracking-wide">{label}</span>
-            {badge && <span className="ml-auto text-xs bg-gray-800 px-1.5 py-0.5 rounded text-gray-400">{badge}</span>}
+        <a 
+            href="#" 
+            onClick={(e) => { e.preventDefault(); onClick?.(); }} 
+            className={clsx(
+                "flex items-center gap-4 px-3 py-2.5 rounded-xl transition-all duration-300 group relative overflow-hidden",
+                active 
+                    ? "bg-primary text-white shadow-[0_8px_20px_rgba(242,153,74,0.25)]" 
+                    : "text-gray-500 hover:text-gray-200 hover:bg-white/5"
+            )}
+        >
+            {/* Active Glow Indicator */}
+            {active && (
+                <div className="absolute inset-0 bg-gradient-to-r from-orange-400/20 to-transparent"></div>
+            )}
+            
+            <Icon size={18} className={clsx("relative z-10 transition-transform duration-300", active ? "scale-110" : "group-hover:scale-110 group-hover:text-primary")} />
+            <span className="relative z-10 font-bold text-sm tracking-tight">{label}</span>
+            
+            {badge && (
+                <span className="relative z-10 ml-auto text-[10px] font-black bg-black/40 px-2 py-0.5 rounded-full text-gray-200 border border-white/10 group-hover:border-primary/30">
+                    {badge}
+                </span>
+            )}
+
+            {/* Hover Indicator Overlay */}
+            {!active && (
+                <div className="absolute left-0 top-0 bottom-0 w-0 group-hover:w-1 bg-primary/40 transition-all duration-300"></div>
+            )}
         </a>
     )
 }

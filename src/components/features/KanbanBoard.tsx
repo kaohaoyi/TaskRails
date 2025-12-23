@@ -5,7 +5,7 @@ import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor,
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import clsx from 'clsx';
-import { Plus, Search, LayoutGrid, Layers, Download, Upload, X, Bot, User, Trash2 } from 'lucide-react';
+import { Plus, Search, LayoutGrid, Layers, Download, Upload, Bot, User, Trash2 } from 'lucide-react';
 import { useTranslation } from '../../hooks/useTranslation';
 import TaskDetailModal, { TaskData, TaskStatus } from './TaskDetailModal';
 import TaskList from './TaskList';
@@ -188,7 +188,7 @@ export default function KanbanBoard({
       const task = tasks.find(t => t.id === taskId);
       if (task && (task.status === 'doing' || task.status === 'done')) return;
 
-      if (confirm('Are you sure you want to delete this task?')) {
+      if (confirm(fullT.common.deleteConfirm)) {
         onTasksChange(tasks.filter(t => t.id !== taskId));
       }
   };
@@ -244,7 +244,7 @@ export default function KanbanBoard({
           }
       } catch (e) {
           console.error(e);
-          alert('Failed to parse Markdown file.');
+          alert(fullT.common.parseError);
       }
       if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -277,7 +277,7 @@ export default function KanbanBoard({
                  className="bg-surface-dark border border-border-dark rounded-md px-3 py-1.5 text-sm text-gray-300 focus:border-primary focus:outline-none cursor-pointer"
                  style={{ backgroundColor: '#1A1A1F' }}
              >
-                 <option value="all" style={{ backgroundColor: '#1A1A1F', color: '#d1d5db' }}>全部任務</option>
+                 <option value="all" style={{ backgroundColor: '#1A1A1F', color: '#d1d5db' }}>{fullT.sidebar.all}</option>
                  {availableRoles.map(role => (
                      <option 
                          key={role.id} 
@@ -491,7 +491,6 @@ interface TaskCardProps {
 }
 
 function TaskCard({ task, onClick, onDelete, disabled }: TaskCardProps) {
-    console.log('[TaskCard] Rendering', { taskId: task.id, disabled, hasOnClick: !!onClick });
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id, disabled });
 
     const style = {
@@ -500,39 +499,43 @@ function TaskCard({ task, onClick, onDelete, disabled }: TaskCardProps) {
     };
 
     const handleCardClick = () => {
-        console.log('[TaskCard] Card clicked!', { taskId: task.id, disabled });
-        if (disabled) {
-            console.log('[TaskCard] Click blocked - card is disabled');
-            return;
-        }
-        if (onClick) {
-            console.log('[TaskCard] Calling onClick handler');
-            onClick();
-        } else {
-            console.log('[TaskCard] No onClick handler provided');
-        }
+        if (!disabled && onClick) onClick();
     };
+
+    // Calculate checklist progress
+    const checkItems = task.description?.match(/- \[[x ]\]/g) || [];
+    const completedItems = task.description?.match(/- \[x\]/g) || [];
+    const progress = checkItems.length > 0 ? (completedItems.length / checkItems.length) * 100 : null;
 
     if (isDragging) {
         return (
-            <div ref={setNodeRef} style={style} className="opacity-50 bg-[#1A1A1F] border border-primary p-4 rounded h-[100px]"></div>
+            <div ref={setNodeRef} style={style} className="opacity-40 bg-primary/10 border-2 border-dashed border-primary/40 rounded-lg p-5 h-[120px] shadow-[0_0_20px_rgba(242,153,74,0.1)]"></div>
         );
     }
+
+    const priorityColors: Record<string, string> = {
+        '1': 'bg-red-500',
+        '2': 'bg-orange-500',
+        '3': 'bg-blue-500',
+        '4': 'bg-gray-500',
+    };
 
     return (
         <div 
             ref={setNodeRef} 
             style={style}
             className={clsx(
-                "relative bg-[#1A1A1F] border p-4 rounded shadow-sm transition-all group",
+                "relative bg-[#16161A] border rounded-xl p-4 transition-all duration-300 group overflow-hidden",
                 task.isReworked 
-                    ? "border-orange-500/50 bg-orange-900/10 cursor-pointer" 
-                    : "border-[#2A2A30]",
-                !disabled && !task.isReworked ? "hover:border-primary/40 cursor-pointer hover:shadow-md hover:shadow-black/20" : "",
-                disabled && !task.isReworked ? "cursor-default opacity-80" : ""
+                    ? "border-orange-500/40 shadow-[inset_0_0_10px_rgba(249,115,22,0.05)]" 
+                    : "border-white/5 hover:border-primary/30",
+                !disabled ? "cursor-pointer hover:shadow-[0_8px_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5" : "opacity-80 grayscale-[20%]"
             )}
         >
-            {/* Drag Handle - Invisible overlay for dragging */}
+            {/* Priority Edge Indicator */}
+            <div className={clsx("absolute left-0 top-0 bottom-0 w-1 rounded-l-full", priorityColors[task.priority || '3'])}></div>
+
+            {/* Drag Handle Overlay */}
             <div 
                 {...attributes} 
                 {...listeners}
@@ -540,74 +543,88 @@ function TaskCard({ task, onClick, onDelete, disabled }: TaskCardProps) {
                 style={{ cursor: disabled ? 'default' : 'grab' }}
             />
             
-            {/* Content Area - Clickable, sits above drag handle */}
-            <div 
-                onClick={handleCardClick}
-                className="relative z-10"
-                style={{ cursor: disabled ? 'default' : 'pointer' }}
-            >
-                {/* Action Buttons (Visible on Hover) - Only if onDelete is provided */}
-                {onDelete && (
-                    <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                        <button 
-                            onPointerDown={(e) => e.stopPropagation()}
-                            onClick={(e) => { e.stopPropagation(); onDelete(e); }}
-                            className="p-1 hover:bg-red-500/20 text-gray-500 hover:text-red-400 rounded transition-colors"
-                        >
-                            <X size={12} />
-                        </button>
+            {/* Content Area */}
+            <div onClick={handleCardClick} className="relative z-10">
+                {/* Header Metadata */}
+                <div className="flex justify-between items-start mb-3">
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono font-bold text-gray-500 group-hover:text-primary transition-colors tracking-tighter uppercase">{task.id}</span>
+                            {task.isReworked && (
+                                <span className="text-[8px] font-black bg-orange-500 text-white px-1.5 py-0.5 rounded italic">REWORKED</span>
+                            )}
+                        </div>
+                        <span className="text-[9px] font-black text-white/30 tracking-widest uppercase mt-0.5">{task.phase}</span>
+                    </div>
+
+                    <div className="flex gap-1.5 items-center">
+                        {task.tag && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 text-gray-400 border border-white/5 font-bold">
+                                {task.tag}
+                            </span>
+                        )}
+                        {task.assignee && (
+                            <div className={clsx(
+                                "w-6 h-6 rounded-lg flex items-center justify-center shadow-sm",
+                                (task.assignee.startsWith('ai_')) ? "bg-purple-500/10 text-purple-400 border border-purple-500/20" : 
+                                "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                            )} title={task.assignee}>
+                                 {task.assignee.startsWith('ai_') ? <Bot size={14} /> : <User size={14} />}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Task Title */}
+                <h3 className="text-gray-100 font-bold text-sm leading-tight mb-3 line-clamp-2 tracking-wide group-hover:text-white transition-colors">
+                    {task.title}
+                </h3>
+                
+                {/* Description Snippet */}
+                {task.description && (
+                    <div className="text-[11px] text-gray-500 font-medium leading-[1.6] line-clamp-2 mb-4 pr-2">
+                        {task.description.replace(/[#*`\-[\]x]/g, '').replace(/\n/g, ' ').trim()}
                     </div>
                 )}
 
-            <div className="flex justify-between items-start mb-2 pr-6">
-                <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] font-mono text-gray-500 group-hover:text-primary transition-colors">{task.id}</span>
-                    <span className="text-[9px] font-bold text-primary/70">{task.phase}</span>
-                    {task.isReworked && (
-                        <span className="text-[9px] font-bold text-orange-500 border border-orange-500/30 px-1 rounded bg-orange-500/10 w-fit mt-0.5">REWORKED</span>
-                    )}
-                </div>
-                <div className="flex items-center gap-1">
-                    {task.priority === '1' && <span className="text-[9px] px-1 rounded bg-red-500/20 text-red-400 border border-red-500/20">P1</span>}
-                    {task.priority === '2' && <span className="text-[9px] px-1 rounded bg-orange-500/20 text-orange-400 border border-orange-500/20">P2</span>}
-                    {task.priority !== '1' && task.priority !== '2' && <span className="text-[9px] text-gray-600 font-mono">P{task.priority}</span>}
+                {/* Bottom Stats & Progress */}
+                <div className="flex items-center justify-between mt-auto pt-3 border-t border-white/5">
+                    <div className="flex-1 max-w-[100px]">
+                        {progress !== null && (
+                            <div className="space-y-1.5">
+                                <div className="flex justify-between items-center text-[8px] uppercase font-black tracking-widest text-gray-600">
+                                    <span>PROGRESS</span>
+                                    <span>{Math.round(progress)}%</span>
+                                </div>
+                                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                                    <div 
+                                        className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_5px_rgba(242,153,74,0.5)]" 
+                                        style={{ width: `${progress}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     
-                    {task.tag && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-gray-400 border border-white/5">
-                            {task.tag}
-                        </span>
-                    )}
-                    {task.assignee && (
-                        <div className={clsx(
-                            "w-4 h-4 rounded-full flex items-center justify-center ml-1",
-                            (task.assignee.startsWith('ai_')) ? "bg-purple-500/20 text-purple-400" : 
-                            (task.assignee.startsWith('user_')) ? "bg-blue-500/20 text-blue-400" : "bg-gray-700"
-                        )}>
-                             {task.assignee.startsWith('ai_') ? <Bot size={10} /> : <User size={10} />}
+                    <div className="flex items-center gap-2 ml-4">
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black/40 rounded-full border border-white/5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_5px_rgba(242,153,74,0.8)]"></div>
+                            <span className="text-[9px] font-mono text-gray-400 tracking-tighter">NODE_S1</span>
                         </div>
-                    )}
+                    </div>
                 </div>
+
+                {/* Delete Button (Overlayed on hover for power users) */}
+                {onDelete && (
+                    <button 
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); onDelete(e); }}
+                        className="absolute bottom-2 right-2 p-1.5 opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all z-20"
+                    >
+                        <Trash2 size={12} />
+                    </button>
+                )}
             </div>
-            
-            <h3 className="text-gray-200 font-medium text-sm leading-snug line-clamp-1">{task.title}</h3>
-            
-            
-            {task.description && (
-                <div className="mt-2.5 text-[11px] text-gray-400 font-normal leading-[1.5] line-clamp-3 overflow-hidden border-l-2 border-primary/20 pl-2.5 py-0.5 italic opacity-80 decoration-gray-600">
-                    {task.description.replace(/[#*`\-[\]x]/g, '').replace(/\n/g, ' ').trim()}
-                </div>
-            )}
-            
-            <div className="mt-4 flex items-center justify-between border-t border-white/5 pt-3">
-               <div className="flex -space-x-1.5 overflow-hidden">
-                   <div className="w-5 h-5 rounded-full bg-gray-700 border border-[#1A1A1F] flex items-center justify-center text-[8px] text-gray-400">?</div>
-               </div>
-               <div className="flex items-center gap-1.5">
-                   <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20 text-[8px] text-primary font-bold">AI</div>
-                   <span className="text-[9px] text-gray-600 font-mono">MDL_V2</span>
-               </div>
-            </div>
-            </div> {/* Close Content Area div */}
         </div>
     );
 }

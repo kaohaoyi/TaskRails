@@ -1,14 +1,25 @@
 import { Task } from '../components/features/KanbanBoard';
+import { AgentRole } from '../components/features/RoleSettingsPage';
 import { TaskStatus } from '../components/features/TaskDetailModal';
 
-export function parseTaskMarkdown(content: string): Task[] {
+export interface ProjectContext {
+    tasks: Task[];
+    roles: AgentRole[];
+}
+
+export function parseProjectContext(content: string): ProjectContext {
     const tasks: Task[] = [];
+    const roles: AgentRole[] = [];
     const lines = content.split('\n');
     
+    let currentSection: 'NONE' | 'ROLES' | 'TASKS' = 'NONE';
+    let currentTask: any = null;
+    let currentRole: any = null;
     let currentStatus: TaskStatus = 'todo';
-    let currentTask: Partial<Task> | null = null;
+    
     let capturingDescription = false;
     let descriptionLines: string[] = [];
+    let promptLines: string[] = [];
 
     const statusMap: Record<string, TaskStatus> = {
         'TODO': 'todo',
@@ -22,101 +33,158 @@ export function parseTaskMarkdown(content: string): Task[] {
     lines.forEach(line => {
         const trimmed = line.trim();
         
-        // 1. Detect Section Headers (Status)
+        // 1. Detect Sections
         if (line.startsWith('## ')) {
             const header = line.replace('## ', '').toUpperCase();
-            for (const [key, status] of Object.entries(statusMap)) {
-                if (header.includes(key)) {
-                    currentStatus = status;
-                    break;
+            if (header.includes('ROLE REGISTRY')) {
+                currentSection = 'ROLES';
+            } else if (header.includes('MISSION BOARD')) {
+                currentSection = 'TASKS';
+            }
+            return;
+        }
+
+        // ============ ROLE PARSING ============
+        if (currentSection === 'ROLES') {
+            const roleHeaderMatch = line.match(/^### ROLE:\s*(.*)\s*\((.*)\)/);
+            if (roleHeaderMatch) {
+                if (currentRole && currentRole.id) {
+                    currentRole.systemPrompt = promptLines.join('\n').trim();
+                    roles.push(currentRole as AgentRole);
                 }
-            }
-            return;
-        }
-
-        // 2. Detect Task Header (### ID: Title)
-        const taskHeaderMatch = line.match(/^### (TSK-\d+):\s*(.*)/);
-        if (taskHeaderMatch) {
-            // Save previous task if exists
-            if (currentTask && currentTask.id) {
-                currentTask.description = descriptionLines.join('\n').trim();
-                tasks.push(currentTask as Task);
-            }
-
-            // Start new task
-            currentTask = {
-                id: taskHeaderMatch[1],
-                title: taskHeaderMatch[2],
-                status: currentStatus,
-                phase: 'PHASE 1',
-                priority: '3',
-                isReworked: false
-            };
-            descriptionLines = [];
-            capturingDescription = false;
-            return;
-        }
-
-        if (!currentTask) return;
-
-        // 3. Detect Metadata
-        if (line.startsWith('- **Phase**:')) {
-            currentTask.phase = line.replace('- **Phase**:', '').trim();
-            return;
-        }
-        if (line.startsWith('- **Priority**:')) {
-            currentTask.priority = line.replace('- **Priority**:', '').trim().replace('P', '');
-            return;
-        }
-        if (line.startsWith('- **Tag**:')) {
-            currentTask.tag = line.replace('- **Tag**:', '').trim();
-            return;
-        }
-        if (line.startsWith('- **Assignee**:')) {
-            currentTask.assignee = line.replace('- **Assignee**:', '').trim();
-            return;
-        }
-        if (line.startsWith('- **Status**:')) {
-            if (line.includes('[REWORKED]')) {
-                currentTask.isReworked = true;
-            }
-            return;
-        }
-
-        // 4. Detect Separator or Empty lines before description
-        if (trimmed === '---') {
-            if (currentTask && currentTask.id) {
-                currentTask.description = descriptionLines.join('\n').trim();
-                tasks.push(currentTask as Task);
-                currentTask = null;
-            }
-            return;
-        }
-
-        // 5. Capture Description
-        // If we reach here and it's not a metadata line, it's either an empty line or description
-        if (currentTask) {
-            // Start capturing description after the first empty line or non-bullet line
-            if (trimmed === '' && !capturingDescription && descriptionLines.length === 0) {
-                // Usually an empty line follows metadata before description starts
-                capturingDescription = true; 
+                currentRole = {
+                    agentName: roleHeaderMatch[1].trim(),
+                    name: roleHeaderMatch[2].trim(),
+                };
+                promptLines = [];
                 return;
             }
-            
-            if (capturingDescription || trimmed !== '') {
-                capturingDescription = true;
-                descriptionLines.push(line);
+
+            if (!currentRole) return;
+
+            if (line.startsWith('- **ID**:')) {
+                currentRole.id = line.replace('- **ID**:', '').trim();
+                return;
+            }
+            if (line.startsWith('- **Type**:')) {
+                currentRole.type = line.replace('- **Type**:', '').trim().toLowerCase() as 'ai' | 'human';
+                return;
+            }
+            if (line.startsWith('- **Default**:')) {
+                currentRole.isDefault = line.replace('- **Default**:', '').trim() === 'Yes';
+                return;
+            }
+
+            if (line.startsWith('> ')) {
+                promptLines.push(line.replace('> ', ''));
+                return;
+            }
+
+            if (trimmed === '---') {
+                if (currentRole && currentRole.id) {
+                    currentRole.systemPrompt = promptLines.join('\n').trim();
+                    roles.push(currentRole as AgentRole);
+                    currentRole = null;
+                }
+                return;
+            }
+        }
+
+        // ============ TASK PARSING ============
+        if (currentSection === 'TASKS') {
+            // Check status sub-header
+            if (line.startsWith('### [STATUS:')) {
+                const header = line.toUpperCase();
+                for (const [key, status] of Object.entries(statusMap)) {
+                    if (header.includes(key)) {
+                        currentStatus = status;
+                        break;
+                    }
+                }
+                return;
+            }
+
+            const taskHeaderMatch = line.match(/^#### (TSK-\d+):\s*(.*)/);
+            if (taskHeaderMatch) {
+                if (currentTask && currentTask.id) {
+                    currentTask.description = descriptionLines.join('\n').trim();
+                    tasks.push(currentTask as Task);
+                }
+                currentTask = {
+                    id: taskHeaderMatch[1],
+                    title: taskHeaderMatch[2],
+                    status: currentStatus,
+                };
+                descriptionLines = [];
+                capturingDescription = false;
+                return;
+            }
+
+            if (!currentTask) return;
+
+            if (line.startsWith('- **Phase**:')) {
+                currentTask.phase = line.replace('- **Phase**:', '').trim();
+                return;
+            }
+            if (line.startsWith('- **Priority**:')) {
+                currentTask.priority = line.replace('- **Priority**:', '').trim().replace('P', '');
+                return;
+            }
+            if (line.startsWith('- **Tag**:')) {
+                currentTask.tag = line.replace('- **Tag**:', '').trim();
+                return;
+            }
+            if (line.startsWith('- **Assignee**:')) {
+                currentTask.assignee = line.replace('- **Assignee**:', '').trim();
+                return;
+            }
+            if (line.startsWith('- **Flags**:')) {
+                if (line.includes('[REWORKED]')) {
+                    currentTask.isReworked = true;
+                }
+                return;
+            }
+
+            if (trimmed === '---') {
+                if (currentTask && currentTask.id) {
+                    currentTask.description = descriptionLines.join('\n').trim();
+                    tasks.push(currentTask as Task);
+                    currentTask = null;
+                }
+                return;
+            }
+
+            // Capture Description
+            if (currentTask) {
+                if (trimmed === '' && !capturingDescription && descriptionLines.length === 0) {
+                    capturingDescription = true; 
+                    return;
+                }
+                if (capturingDescription || (trimmed !== '' && !line.startsWith('-'))) {
+                    capturingDescription = true;
+                    descriptionLines.push(line);
+                }
             }
         }
     });
 
-    // Push the last task if exists and not followed by ---
-    const lastTask = currentTask as any;
-    if (lastTask && lastTask.id) {
-        lastTask.description = descriptionLines.join('\n').trim();
-        tasks.push(lastTask as Task);
+    // Cleanup last items
+    if (currentRole && currentRole.id) {
+        currentRole.systemPrompt = promptLines.join('\n').trim();
+        roles.push(currentRole as AgentRole);
+    }
+    
+    if (currentTask && currentTask.id) {
+        currentTask.description = descriptionLines.join('\n').trim();
+        tasks.push(currentTask as Task);
     }
 
-    console.log('[mdImport] Successfully parsed', tasks.length, 'tasks');
-    return tasks;
+    return { tasks, roles };
+}
+
+/**
+ * Legacy support for simple task parsing
+ */
+export function parseTaskMarkdown(content: string): Task[] {
+    return parseProjectContext(content).tasks;
 }

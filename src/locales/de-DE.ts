@@ -1,187 +1,216 @@
-export const de_DE = {
+import { TranslationType } from "./zh-TW";
+
+export const de_DE: TranslationType = {
   common: {
     appName: "TaskRails",
     version: "v2.0",
-    importMd: "MD importieren",
-    exportMd: "MD exportieren",
+    importMd: "MD Importieren",
+    exportMd: "MD Exportieren",
     deleteAll: "Alle löschen",
-    deleteAllConfirm: "Sind Sie sicher, dass Sie alle Aufgaben löschen möchten? Diese Aktion kann nicht rückgänging gemacht werden.",
+    deleteAllConfirm: "Sind Sie sicher, dass Sie alle Aufgaben löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+    deleteConfirm: "Sind Sie sicher, dass Sie diese Aufgabe löschen möchten?",
     importConfirm: "{count} Aufgaben gefunden. Möchten Sie die aktuelle Liste ersetzen?",
-    noTasksFound: "Keine gültigen Aufgaben in der Datei gefunden, bitte Format prüfen."
+    noTasksFound: "Keine gültigen Aufgaben in der Datei gefunden, bitte überprüfen Sie das Format.",
+    parseError: "Fehler beim Parsen der Markdown-Datei."
   },
   sidebar: {
+    all: "Alle Aufgaben",
     main: "HAUPTMENÜ",
     roleSettings: "ROLLEN",
-    kanban: "KANBAN-BOARD",
+    kanban: "KANBAN BRIDGE",
     missions: "MISSIONEN",
-    engineering: "ENTWICKLUNG",
+    engineering: "ENGINEERING",
     issues: "PROBLEME",
     commits: "COMMITS",
-    history: "VERLAUF",
+    history: "HISTORY",
     specs: "SPEZIFIKATIONEN",
+    manual: "Handbuch",
     admin: "ADMIN",
     system_op: "SYSTEM_OP",
   },
   specs: {
-    title: "Projektdesign-Spezifikationen",
-    subtitle: "// Projekt-Spezifikationen & Anforderungsdefinitions-Zentrum //",
-    generateAi: "KI-Smart-Generierung",
-    injectTasks: "In Kanban übertragen",
-    selectCategory: "Projektkategorie auswählen",
+    title: "Projektspezifikationen",
+    subtitle: "// Zentrum für Anforderungsdefinition //",
+    generateAi: "KI-Spezifikation generieren",
+    injectTasks: "In Kanban bereitstellen",
+    selectCategory: "Kategorie wählen",
     categories: {
         web: "Web-Anwendung",
-        desktop: "Desktop-App",
+        desktop: "Desktop-Software",
         esp: "Hardware/Firmware (ESP32)",
         backend: "Backend-System/API",
         mobile: "Mobile APP",
         game: "Spieleentwicklung",
         web3: "Blockchain/Web3",
         bot: "Bot/Automatisierung",
-        ml: "Maschinelles Lernen/KI-Daten",
+        ml: "Maschinelles Lernen",
         extension: "Browser-Erweiterung"
     },
     aiChat: {
-        title: "Spezifikations-KI-Berater",
-        placeholder: "Beschreiben Sie die Software oder Funktion, die Sie entwickeln möchten...",
-        startConsulting: "Technische Beratung starten",
+        title: "KI-Spezi-Berater",
+        placeholder: "Beschreiben Sie die Software oder Funktionen...",
+        startConsulting: "Beratung starten",
         stopConsulting: "Beratung stoppen",
-        applySpec: "Konsens auf Spezifikation anwenden",
+        applySpec: "Konsens anwenden",
         aiThinking: "KI entwirft Architektur...",
-        welcome: "Hallo! Ich bin Ihr technischer Architekt. Sagen Sie mir, was Sie entwickeln möchten, und ich werde Ihnen helfen, das Spezifikationsdokument durch Fragen zu perfektionieren."
+        welcome: "Hallo! Ich bin Ihr technischer Architekt. Sagen Sie mir, was Sie entwickeln möchten, und ich helfe Ihnen bei der Spezifikation.",
+        copy: "Kopieren",
+        stop: "Stopp",
+        systemPrompt: "System-Prompt",
+        savePrompt: "Prompt speichern",
+        copySuccess: "In Zwischenablage kopiert",
+        defaultSystemPrompt: `Sie sind ein erfahrener Systemarchitekt und technischer Leiter. Ihre Aufgabe ist es, den Benutzer bei der Planung einer vollständigen "Technischen Projektspezifikation" von Grund auf zu unterstützen.
+1. Tiefe Führung: Führen Sie den Benutzer dazu, über Architekturebenen, Tech-Stack-Auswahl, Datenbankschema und detaillierte funktionale Entwicklungsphasen (Phases) nachzudenken.
+2. Sprachstandard: Verwenden Sie für die Kommunikation immer "Deutsch".
+3. Ausgabestandard: Wenn die Planung ausgereift ist, schlagen Sie aktiv vor oder geben Sie direkt das folgende JSON-Format aus:
+   \`\`\`json
+   { 
+     "name": "Projektname", 
+     "overview": "Vision und Überblick", 
+     "techStack": "Detaillierte Tech-Stack-Liste", 
+     "dataStructure": "Datenstrukturdefinition", 
+     "features": "## Phase 1...\\n## Phase 2...", 
+     "design": "Designästhetik und UI-Standards", 
+     "rules": "Engineering-Prinzipien und Standards" 
+   }
+   \`\`\``
     },
     placeholders: {
         name: "Projektname",
-        overview: "Projektübersicht & Ziele...",
+        overview: "Projektüberblick...",
         techStack: "Tech-Stack (Frontend, Backend, DB...)",
         dataStructure: "Datenstruktur-Definition...",
-        features: "Kernfunktionsliste (Sortiert nach Phase 1/2)...",
-        design: "Design-Standards (Farben, Layout...)",
-        rules: "Projekt-Dokumentationsregeln..."
+        features: "Funktionsliste (Sortiert nach Phase 1/2)...",
+        design: "Design-Spezi (Farbe, Layout...)",
+        rules: "Dokumentationsregeln..."
     },
     toast: {
-        generated: "KI-Spezifikation generiert",
-        injected: "{count} Aufgaben erfolgreich in Kanban übertragen",
-        apiKeyRequired: "Bitte konfigurieren Sie zuerst den KI-API-Schlüssel in den Einstellungen"
+        generated: "KI-Spezi generiert",
+        injected: "{count} Aufgaben erfolgreich importiert",
+        apiKeyRequired: "Bitte konfigurieren Sie zuerst den KI-API-Schlüssel"
     }
   },
   roleSettings: {
-    title: "Aufgabenrollen-Einstellungen",
-    subtitle: "KI-Agenten und Kollaborationsrollen verwalten",
-    defaultRoles: "Standard-Rollen",
-    customRoles: "Benutzerdefinierte Rollen",
+    title: "Rollen-Einstellungen",
+    subtitle: "KI-Agenten und Mitarbeiter-Rollen verwalten",
+    defaultRoles: "Standardrollen",
+    customRoles: "Eigene Rollen",
     addRole: "Rolle hinzufügen",
     roleName: "Rollenname",
     agentName: "Agentenname",
     roleType: "Typ",
     typeAI: "KI-Agent",
-    typeHuman: "Kollaborateur",
+    typeHuman: "Mitarbeiter",
     save: "Speichern",
     delete: "Löschen",
-    noCustomRoles: "Noch keine benutzerdefinierten Rollen hinzugefügt"
+    noCustomRoles: "Noch keine eigenen Rollen hinzugefügt"
   },
   roles: {
-    coder: "ENTWICKLER",
-    reviewer: "PRÜFER",
-    architect: "ARCHITEKT",
-    all: "ALLE PERSONEN"
+    coder: "Entwickler",
+    reviewer: "Prüfer",
+    architect: "Architekt",
+    all: "Alle Mitarbeiter"
   },
   tags: {
     general: "Allgemein",
-    feature: "Feature",
-    bug: "Bug",
+    feature: "Funktion",
+    bug: "Fehler",
     enhancement: "Optimierung",
-    documentation: "Dokumentation",
+    documentation: "Doku",
     design: "Design"
   },
   kanban: {
     title: "Projekt-Dashboard",
-    subtitle: "// SYSTEMSTATUS: NORMAL //",
+    subtitle: "// Systemstatus: NORMAL //",
     searchPlaceholder: "Aufgaben suchen...",
-    newTask: "NEUE AUFGABE",
+    newTask: "Neue Aufgabe",
     columns: {
-        todo: "OFFEN",
-        doing: "IN BEARBEITUNG",
-        done: "ERLEDIGT"
+        todo: "To-Do",
+        doing: "In Arbeit",
+        done: "Erledigt"
     },
     taskModal: {
         titlePlaceholder: "Aufgabentitel...",
-        descPlaceholder: "Beschreibung mit Markdown verfassen...",
+        descPlaceholder: "Beschreibung mit Markdown...",
         phase: "Phase",
         priority: "Priorität",
         tag: "Tag",
-        created: "Erstellungsdatum",
-        assignee: "Verantwortlicher",
+        created: "Erstellt am",
+        assignee: "Zuständig",
         unassigned: "Nicht zugewiesen",
         delete: "Löschen",
         cancel: "Abbrechen",
-        save: "Änderungen speichern",
-        rework: "Nachbearbeitung",
-        reworkDesc: "Inhalt zurück nach Offen kopieren",
+        save: "Speichern",
+        rework: "Nachbearbeiten",
+        reworkDesc: "Inhalt zurück zu To-Do kopieren",
         completed: "Abgeschlossen",
         reworked: "Nachbearbeitet",
         enterNumber: "Nummer eingeben",
-        sortOrder: "Sortierreihenfolge (Niedrig=Hohe Priorität)"
+        sortOrder: "Sortierung (Niedrig=Hohe Prio)"
     }
   },
   missions: {
     title: "Missionsliste",
-    subtitle: "// ÜBERSICHT ALLER MISSIONEN //",
+    subtitle: "// Aufgabenübersicht //",
     stats: {
-      todo: "OFFEN",
-      doing: "IN BEARBEITUNG",
-      done: "ERLEDIGT",
-      reworked: "NACHBEARBEITET"
+      todo: "To-Do",
+      doing: "In Arbeit",
+      done: "Erledigt",
+      reworked: "Nachbearbeitet"
     },
-    search: "Aufgaben-ID, Titel oder Beschreibung suchen...",
+    search: "Nach ID, Titel oder Beschreibung suchen...",
     taskCount: "Aufgaben",
     noTasks: "Noch keine Aufgaben",
-    noMatch: "Keine übereinstimmenden Aufgaben gefunden"
+    noMatch: "Keine Treffer gefunden"
   },
   engineering: {
     title: "Engineering-Bereich",
-    ideControl: "KI-IDE Befehlskontrollzentrum",
+    ideControl: "KI-IDE-Kontrollzentrum",
     debug: "DEBUG AUSFÜHREN",
     build: "BUILD AUSFÜHREN",
-    runApp: "APP AUSFÜHREN",
+    runApp: "APP STARTEN",
     commandSent: "Befehl an KI-IDE gesendet:",
+    noIssues: "Aktuell gibt es keine als BUG markierten Aufgaben.",
+    noHistory: "Noch kein Operationsverlauf vorhanden",
+    commitsDeveloping: "Die Integration der Git-Commit-Historie ist in Entwicklung...",
     proposal: {
-        issues: "Problemverfolgung: Aufgabensystem mit Fehlerberichten integrieren, Codeänderungen automatisch mit Issue-ID verknüpfen.",
-        commits: "Commit-Aufzeichnungen: Git-Baum visualisieren, Commits anklicken, um Aufgaben- und Codeänderungsdetails anzuzeigen.",
-        history: "Verlauf: Aufzeichnung wichtiger Systemvorgänge und KI-Änderungsverlauf, unterstützt Code-Rollbacks."
+        issues: "Fehler-Tracking: Integriert Aufgabensystem mit Bug-Reports, verknüpft Code-Änderungen mit Issue-IDs.",
+        commits: "Commit-Historie: Visualisiert Git-Baum, Commits anklicken für Aufgaben und Code-Details.",
+        history: "Historie: Protokolliert Systemoperationen und KI-Änderungsverlauf."
     }
   },
   settings: {
-    title: "SYSTEMEINSTELLUNGEN",
-    subtitle: "KERNKONSOLE /// PREFERENCES_V2",
+    title: "System-Einstellungen",
+    subtitle: "Kernkonsole /// PREFERENCES_V2",
     general: {
-        title: "ALLGEMEIN",
+        title: "Allgemein",
         language: "Sprache",
-        languageDesc: "Wählen Sie die primäre Anzeigesprache für das System.",
+        languageDesc: "Wählen Sie die Anzeigesprache.",
         profile: "Benutzerprofil",
-        profileDesc: "Verwaltet durch die aktive Arbeitsbereichkonfiguration.",
-        adminAccess: "ADMIN_ZUGRIFF",
-        workspace: "Projekt-Arbeitsbereich",
-        workspaceDesc: "Aufgaben mit .taskrails-Datei im lokalen Projektverzeichnis synchronisieren.",
-        pickFolder: "Ordner auswählen",
-        workspaceLinked: "Projekt verknüpft",
-        notLinked: "Nicht verknüpft"
+        profileDesc: "Wird durch das aktuelle Workspace verwaltet.",
+        adminAccess: "Admin-Zugriff",
+        workspace: "Arbeitsbereich",
+        workspaceDesc: "Synchronisiert Aufgaben mit der .taskrails-Datei.",
+        pickFolder: "Ordner Wählen",
+        workspaceLinked: "Projekt Verknüpft",
+        notLinked: "Nicht Verknüpft"
     },
     protocols: {
-        title: "PROTOKOLLE",
-        broadcast: "Identitätsübertragung",
-        broadcastDesc: "Rollenänderungen automatisch über MCP an verbundene Agenten senden.",
-        airlock: "Harter Reset (Schleuse)",
-        airlockDesc: "Löschen des IDE-Verlaufs bei Kontextwechsel erzwingen.",
-        comingSoon: "DEMNÄCHST"
+        title: "Protokolle",
+        broadcast: "ID-Broadcast",
+        broadcastDesc: "Automatische Rollenänderungen via MCP an Agenten senden.",
+        airlock: "Hard Reset (Airlock)",
+        airlockDesc: "IDE-Verlauf bei Kontextwechseln löschen.",
+        comingSoon: "Demnächst"
     },
     ai: {
-        title: "KI-Dienstanbieter",
+        title: "KI-Anbieter",
         provider: "Anbieter",
         apiKey: "API-Schlüssel",
         model: "Modell",
-        endpoint: "Benutzerdefinierter Endpunkt (Optional)",
+        endpoint: "Eigener Endpunkt (Optional)",
         saveSuccess: "KI-Einstellungen gespeichert",
-        saveError: "KI-Einstellungen konnten nicht gespeichert werden",
+        saveError: "Fehler beim Speichern",
         delete: "Schlüssel löschen",
         storedKeys: "Gespeicherte Schlüssel",
         noKeys: "Noch keine Schlüssel gespeichert",
@@ -194,21 +223,59 @@ export const de_DE = {
             together: "Together AI",
             huggingface: "Hugging Face",
             deepseek: "DeepSeek",
-            ollama: "Ollama (Lokal)",
-            custom: "Benutzerdefiniert (OpenAI-kompatibel)"
+            ollama: "Ollama (Local)",
+            custom: "Benutzerdefiniert"
         }
     }
   },
   airlock: {
-    title: "SCHLEUSENKONTROLLE // CODE-REVIEW-PROTOKOLL",
+    title: "Airlock-Steuerung // Review-Protokoll",
     status: {
-        pending: "GENEHMIGUNG AUSSTEHEND",
+        pending: "Wartet auf Freigabe",
         usage: "TOKEN-VERBRAUCH",
         risk: "RISIKO"
     },
+    risks: {
+        low: "Niedrig",
+        medium: "Mittel",
+        high: "Hoch"
+    },
     actions: {
-        reject: "ABLEHNEN",
-        approve: "ÄNDERUNGEN GENEHMIGEN"
+        reject: "Ablehnen",
+        approve: "Änderungen bestätigen"
+    }
+  },
+  instruction: {
+    title: "Protokolle",
+    subtitle: "Handbuch",
+    banner: "Willkommen im TaskRails-Kontrollzentrum. Dieser Guide hilft Ihnen, Ihren Workflow mit dem KI-Architekten und Kanban zu optimieren.",
+    modules: {
+      objectives: {
+        title: "Missionsziele",
+        desc: "Das Gehirn Ihres Projekts. Chatten Sie mit dem KI-Architekten, um Tech-Stacks und Pläne zu erstellen. Pläne können direkt ins Kanban 'bereitgestellt' werden."
+      },
+      board: {
+        title: "Missions-Board",
+        desc: "Dynamisches Aufgabenmanagement. Mit Drag-and-Drop, Phasen-Sortierung und Prioritäts-Tags. KI-Aufgaben werden automatisch klassifiziert."
+      },
+      role: {
+        title: "Rollen-Kontrolle",
+        desc: "Konfigurieren Sie KI-Agenten. Legen Sie eigene System-Prompts für Entwickler oder Architekten fest."
+      }
+    },
+    workflow: {
+      title: "Standard-Workflow",
+      step1: { title: "Planung starten", desc: "Gehen Sie zu Missionsziele und starten Sie die KI-Beratung." },
+      step2: { title: "Spezi generieren", desc: "Klicken Sie auf 'KI-Spezi anwenden', um Felder automatisch zu füllen." },
+      step3: { title: "Aufgaben ausrollen", desc: "Klicken Sie auf 'DEPLOY TO MISSION BOARD', um Karten zu erstellen." },
+      step4: { title: "Entwicklung", desc: "Verwalten Sie den Status im Kanban und verfolgen Sie Änderungen in der Historie." }
+    },
+    advanced: {
+      title: "Fortgeschrittene Taktiken",
+      mcp: { title: "MCP-Unterstützung", desc: "Model Context Protocol erlaubt KI-Agenten direkten Zugriff auf den Kanban-Status." },
+      lang: { title: "Mehrsprachigkeit", desc: "Volle Unterstützung für mehrsprachige Entwicklung." },
+      ui: { title: "Cyberpunk UI", desc: "Reaktionsschnelles React 19 + Framer Motion Interface." },
+      tip: "Gute KI-Planung ist der halbe Erfolg. Prüfen Sie ## Phase-Header vor dem Bereitstellen."
     }
   }
 };

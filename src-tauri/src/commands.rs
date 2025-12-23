@@ -1,5 +1,6 @@
 use crate::db::DbState;
 use crate::state_machine::{AppState, StateManager};
+use crate::utils::ai::{AiClient, AiRequest, ChatMessage};
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
@@ -17,6 +18,18 @@ pub struct TaskData {
     pub is_reworked: Option<bool>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SpecData {
+    pub id: String,
+    pub name: Option<String>,
+    pub overview: Option<String>,
+    pub tech_stack: Option<String>,
+    pub data_structure: Option<String>,
+    pub features: Option<String>,
+    pub design: Option<String>,
+    pub rules: Option<String>,
+}
+
 // ============ Role Types ============
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RoleData {
@@ -26,28 +39,6 @@ pub struct RoleData {
     pub role_type: String, // 'ai' or 'human'
     pub system_prompt: Option<String>,
     pub is_default: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ChatMessage {
-    pub role: String,
-    pub content: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct OpenAIRequest {
-    model: String,
-    messages: Vec<ChatMessage>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct OpenAIResponse {
-    choices: Vec<OpenAIChoice>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct OpenAIChoice {
-    message: ChatMessage,
 }
 
 #[tauri::command]
@@ -73,70 +64,22 @@ pub async fn execute_ai_chat(
             .unwrap_or("gpt-4o".to_string())
     });
 
-    let custom_endpoint = get_setting(db_state.clone(), "ai_endpoint".to_string())
-        .unwrap_or(None)
-        .unwrap_or_default();
-
-    // Clean model name for Google (must not have models/ or google/ prefix for OpenAI shim)
-    let final_model = if provider == "google" {
-        model.replace("models/", "").replace("google/", "")
-    } else {
-        model
-    };
+    let endpoint = get_setting(db_state.clone(), "ai_endpoint".to_string()).unwrap_or(None);
 
     if api_key.is_empty() && provider != "ollama" {
         return Err("API Key is missing".to_string());
     }
 
-    let url = match provider.as_str() {
-        "openai" => "https://api.openai.com/v1/chat/completions".to_string(),
-        "anthropic" => "https://api.anthropic.com/v1/messages".to_string(),
-        "google" => {
-            "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions".to_string()
-        }
-        "openrouter" => "https://openrouter.ai/api/v1/chat/completions".to_string(),
-        "together" => "https://api.together.xyz/v1/chat/completions".to_string(),
-        "xai" => "https://api.x.ai/v1/chat/completions".to_string(),
-        "deepseek" => "https://api.deepseek.com/chat/completions".to_string(),
-        "huggingface" => "https://api-inference.huggingface.co/v1/chat/completions".to_string(),
-        "ollama" => "http://localhost:11434/v1/chat/completions".to_string(),
-        "custom" => custom_endpoint.clone(),
-        _ => "https://api.openai.com/v1/chat/completions".to_string(),
+    let request = AiRequest {
+        provider,
+        api_key,
+        model,
+        messages,
+        endpoint,
     };
 
-    let client = reqwest::Client::new();
-    let mut builder = client
-        .post(&url)
-        .header("Authorization", format!("Bearer {}", api_key));
-
-    // Handle Anthropic specific headers if needed
-    if provider == "anthropic" {
-        builder = builder
-            .header("x-api-key", &api_key)
-            .header("anthropic-version", "2023-06-01");
-    }
-
-    let response = builder
-        .json(&OpenAIRequest {
-            model: final_model,
-            messages,
-        })
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-
-    if !response.status().is_success() {
-        let err_text = response.text().await.unwrap_or_default();
-        return Err(format!("AI Provider Error ({}): {}", url, err_text));
-    }
-
-    let res_data: OpenAIResponse = response.json().await.map_err(|e| e.to_string())?;
-
-    if let Some(choice) = res_data.choices.first() {
-        Ok(choice.message.content.clone())
-    } else {
-        Err("No response from AI".to_string())
-    }
+    let client = AiClient::new();
+    client.execute(request).await
 }
 
 // ============ Task Commands ============
@@ -224,6 +167,51 @@ pub fn delete_all_tasks(db_state: State<'_, DbState>) -> Result<(), String> {
     let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
     conn.execute("DELETE FROM tasks", [])
         .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ============ Spec Commands ============
+#[tauri::command]
+pub fn get_project_spec(db_state: State<'_, DbState>) -> Result<Option<SpecData>, String> {
+    let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT id, name, overview, tech_stack, data_structure, features, design, rules FROM project_spec WHERE id = 'default'")
+        .map_err(|e| e.to_string())?;
+
+    let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+
+    if let Some(row) = rows.next().map_err(|e| e.to_string())? {
+        Ok(Some(SpecData {
+            id: row.get(0).map_err(|e| e.to_string())?,
+            name: row.get(1).map_err(|e| e.to_string())?,
+            overview: row.get(2).map_err(|e| e.to_string())?,
+            tech_stack: row.get(3).map_err(|e| e.to_string())?,
+            data_structure: row.get(4).map_err(|e| e.to_string())?,
+            features: row.get(5).map_err(|e| e.to_string())?,
+            design: row.get(6).map_err(|e| e.to_string())?,
+            rules: row.get(7).map_err(|e| e.to_string())?,
+        }))
+    } else {
+        Ok(None)
+    }
+}
+
+#[tauri::command]
+pub fn update_project_spec(db_state: State<'_, DbState>, spec: SpecData) -> Result<(), String> {
+    let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT OR REPLACE INTO project_spec (id, name, overview, tech_stack, data_structure, features, design, rules, updated_at) 
+         VALUES ('default', ?1, ?2, ?3, ?4, ?5, ?6, ?7, CURRENT_TIMESTAMP)",
+        rusqlite::params![
+            spec.name,
+            spec.overview,
+            spec.tech_stack,
+            spec.data_structure,
+            spec.features,
+            spec.design,
+            spec.rules,
+        ],
+    ).map_err(|e| e.to_string())?;
     Ok(())
 }
 
@@ -321,7 +309,11 @@ pub fn delete_role(db_state: State<'_, DbState>, id: String) -> Result<(), Strin
 
 // ============ State Machine Commands ============
 #[tauri::command]
-pub fn set_role(state_manager: State<'_, StateManager>, role: String) -> Result<(), String> {
+pub fn set_role(
+    state_manager: State<'_, StateManager>,
+    sse_state: State<'_, crate::mcp::sse::ServerState>,
+    role: String,
+) -> Result<(), String> {
     let new_state = match role.as_str() {
         "coder" => AppState::Coder,
         "reviewer" => AppState::Reviewer,
@@ -329,6 +321,19 @@ pub fn set_role(state_manager: State<'_, StateManager>, role: String) -> Result<
         _ => return Err("Invalid role".to_string()),
     };
     state_manager.set_state(new_state);
+
+    // Broadcast to MCP Clients
+    let _ = sse_state.tx.send(
+        serde_json::json!({
+            "jsonrpc": "2.0",
+            "method": "notifications/identityChange",
+            "params": {
+                "role": role
+            }
+        })
+        .to_string(),
+    );
+
     Ok(())
 }
 
@@ -405,8 +410,31 @@ pub fn write_workspace_file(db_state: State<'_, DbState>, content: String) -> Re
             .map_err(|e| format!("無法寫入 .taskrails: {}", e))?;
         Ok(())
     } else {
-        // 沒有設定工作區，不執行動作
         Ok(())
+    }
+}
+
+#[tauri::command]
+pub fn read_workspace_file(db_state: State<'_, DbState>) -> Result<Option<String>, String> {
+    let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT value FROM settings WHERE key = 'workspace_path'")
+        .map_err(|e| e.to_string())?;
+    let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+
+    if let Some(row) = rows.next().map_err(|e| e.to_string())? {
+        let workspace_path: String = row.get(0).map_err(|e| e.to_string())?;
+        let path = std::path::Path::new(&workspace_path).join(".taskrails");
+
+        if path.exists() {
+            let content =
+                std::fs::read_to_string(path).map_err(|e| format!("無法讀取 .taskrails: {}", e))?;
+            Ok(Some(content))
+        } else {
+            Ok(None)
+        }
+    } else {
+        Ok(None)
     }
 }
 
@@ -473,4 +501,29 @@ pub fn execute_ide_command(
     .map_err(|e| e.to_string())?;
 
     Ok(format!("Command '{}' sent to AI IDE", cmd_type))
+}
+
+#[tauri::command]
+pub async fn open_chat_window(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+
+    // Check if window already exists
+    if let Some(window) = app.get_webview_window("ai-chat") {
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    // Create new window if not exists
+    let url = tauri::WebviewUrl::App("/chat".into());
+    tauri::WebviewWindowBuilder::new(&app, "ai-chat", url)
+        .title("Architect AI")
+        .inner_size(1000.0, 800.0)
+        .min_inner_size(500.0, 600.0)
+        .resizable(true)
+        .visible(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    Ok(())
 }

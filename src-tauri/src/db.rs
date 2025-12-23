@@ -83,6 +83,22 @@ pub fn init(app_handle: &tauri::AppHandle) -> Result<DbState> {
         [],
     )?;
 
+    // Project Specification table for automated planning
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS project_spec (
+            id TEXT PRIMARY KEY,
+            name TEXT,
+            overview TEXT,
+            tech_stack TEXT,
+            data_structure TEXT,
+            features TEXT,
+            design TEXT,
+            rules TEXT,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )",
+        [],
+    )?;
+
     // Insert default roles if not exist
     let default_roles = vec![
         (

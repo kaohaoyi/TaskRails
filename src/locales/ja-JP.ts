@@ -1,15 +1,20 @@
-export const ja_JP = {
+import { TranslationType } from "./zh-TW";
+
+export const ja_JP: TranslationType = {
   common: {
     appName: "TaskRails",
     version: "v2.0",
-    importMd: "MDをインポート",
-    exportMd: "MDをエクスポート",
+    importMd: "MDインポート",
+    exportMd: "MDエクスポート",
     deleteAll: "すべて削除",
     deleteAllConfirm: "すべてのタスクを削除してもよろしいですか？この操作は取り消せません。",
+    deleteConfirm: "このタスクを削除してもよろしいですか？",
     importConfirm: "{count}個のタスクが見つかりました。現在のリストを置き換えますか？",
-    noTasksFound: "有効なタスクが見つかりませんでした。フォーマットを確認してください。"
+    noTasksFound: "有効なタスクが見つかりませんでした。フォーマットを確認してください。",
+    parseError: "Markdownの解析に失敗しました。"
   },
   sidebar: {
+    all: "全ミッション",
     main: "メイン機能",
     roleSettings: "ロール設定",
     kanban: "カンバンボード",
@@ -19,18 +24,19 @@ export const ja_JP = {
     commits: "コミット履歴",
     history: "操作履歴",
     specs: "設計仕様書",
+    manual: "マニュアル",
     admin: "管理者",
     system_op: "システム操作",
   },
   specs: {
     title: "プロジェクト設計仕様書",
-    subtitle: "// 仕様・要件定義センター //",
-    generateAi: "AIで仕様を自動生成",
-    injectTasks: "カンバンへ書き出し",
-    selectCategory: "プロジェクト種別を選択",
+    subtitle: "// プロジェクト仕様・要件定義センター //",
+    generateAi: "AIで仕様を生成",
+    injectTasks: "カンバンにデプロイ",
+    selectCategory: "プロジェクトカテゴリを選択",
     categories: {
-        web: "Webアプリ",
-        desktop: "デスクトップアプリ",
+        web: "Webアプリケーション",
+        desktop: "デスクトップソフト",
         esp: "ハードウェア/ファームウェア (ESP32)",
         backend: "バックエンド/API",
         mobile: "モバイルアプリ",
@@ -42,31 +48,51 @@ export const ja_JP = {
     },
     aiChat: {
         title: "仕様策定AIコンサルタント",
-        placeholder: "開発したいソフトウェアや機能について説明してください...",
-        startConsulting: "テクニカルコンサル開始",
-        stopConsulting: "コンサル停止",
+        placeholder: "開発したいソフトウェアの種類や機能を説明してください...",
+        startConsulting: "技術コンサルティング開始",
+        stopConsulting: "コンサルティング停止",
         applySpec: "合意事項を仕様書に反映",
-        aiThinking: "AIがアーキテクチャを設計中...",
-        welcome: "こんにちは！私はあなたのテクニカルアーキテクトです。開発したいものについて教えてください。質問を通じて仕様書の完成をお手伝いします。"
+        aiThinking: "AIが構築中...",
+        welcome: "こんにちは！私はあなたのテクニカルアーキテクトです。何を開発したいか教えていただければ、質問を通じて仕様書の完成をお手伝いします。",
+        copy: "コピー",
+        stop: "停止",
+        systemPrompt: "システムプロンプト",
+        savePrompt: "プロンプトを保存",
+        copySuccess: "クリップボードにコピーしました",
+        defaultSystemPrompt: `あなたはシニアシステムアーキテクト兼テクニカルリードです。あなたのタスクは、ユーザーがゼロから完全な「プロジェクト技術仕様書」を作成するのを支援することです。
+1. 深いガイダンス：アーキテクチャ階層、技術スタックの選定、データベーススキーマ、および詳細な機能開発フェーズ（Phases）についてユーザーに考えさせます。
+2. 言語基準：常に「日本語」を使用してコミュニケーションを行ってください。
+3. 出力基準：計画が成熟したら、積極的に提案するか、以下のJSON形式で直接出力してください：
+   \`\`\`json
+   { 
+     "name": "プロジェクト名", 
+     "overview": "ビジョンと概要", 
+     "techStack": "詳細な技術スタックリスト", 
+     "dataStructure": "データ構造の定義", 
+     "features": "## Phase 1...\\n## Phase 2...", 
+     "design": "デザイン美学とUI基準", 
+     "rules": "エンジニアリング原則と基準" 
+   }
+   \`\`\``
     },
     placeholders: {
         name: "プロジェクト名",
-        overview: "プロジェクト概要と目標...",
+        overview: "プロジェクトの概要と目標...",
         techStack: "技術スタック (Frontend, Backend, DB...)",
         dataStructure: "データ構造の定義...",
-        features: "コア機能リスト (Phase 1/2順)...",
-        design: "ガイドライン (配色, レイアウト...)",
-        rules: "プロジェクト文書ルール..."
+        features: "主要機能リスト (フェーズ1/2順)...",
+        design: "デザイン仕様 (色、レイアウト...)",
+        rules: "プロジェクトドキュメントのルール..."
     },
     toast: {
-        generated: "AI仕様書が生成されました",
+        generated: "AI仕様が生成されました",
         injected: "{count}個のタスクをカンバンにインポートしました",
-        apiKeyRequired: "設定でAI APIキーを配置してください"
+        apiKeyRequired: "先に設定でAI APIキーを設定してください"
     }
   },
   roleSettings: {
     title: "タスクロール設定",
-    subtitle: "AIエージェントと共同作業者のロールを管理",
+    subtitle: "AIエージェントと共同作業者のロール管理",
     defaultRoles: "デフォルトロール",
     customRoles: "カスタムロール",
     addRole: "ロールを追加",
@@ -83,7 +109,7 @@ export const ja_JP = {
     coder: "開発者",
     reviewer: "レビュアー",
     architect: "アーキテクト",
-    all: "全メンバー"
+    all: "全員"
   },
   tags: {
     general: "一般",
@@ -95,12 +121,12 @@ export const ja_JP = {
   },
   kanban: {
     title: "プロジェクトダッシュボード",
-    subtitle: "// システムステータス：正常 //",
+    subtitle: "// システムステータス: 正常 //",
     searchPlaceholder: "タスクを検索...",
     newTask: "新規タスク",
     columns: {
         todo: "未着手",
-        doing: "着手中",
+        doing: "進行中",
         done: "完了"
     },
     taskModal: {
@@ -116,62 +142,65 @@ export const ja_JP = {
         cancel: "キャンセル",
         save: "変更を保存",
         rework: "リワーク",
-        reworkDesc: "内容を未着手にコピー戻し",
+        reworkDesc: "内容を未着手に戻す",
         completed: "完了済み",
         reworked: "リワーク済み",
         enterNumber: "数値を入力",
-        sortOrder: "表示順 (低=高優先)"
+        sortOrder: "ソート順 (低=高優先)"
     }
   },
   missions: {
-    title: "タスクリスト",
-    subtitle: "// 全タスク一覧 //",
+    title: "ミッションリスト",
+    subtitle: "// タスク全件概要 //",
     stats: {
       todo: "未着手",
-      doing: "着手中",
+      doing: "進行中",
       done: "完了",
-      reworked: "リワーク"
+      reworked: "リワーク済み"
     },
-    search: "タスクID、タイトル、説明で検索...",
+    search: "ID、タイトル、説明で検索...",
     taskCount: "件のタスク",
-    noTasks: "タスクがありません",
+    noTasks: "タスクはまだありません",
     noMatch: "一致するタスクが見つかりません"
   },
   engineering: {
     title: "エンジニアリングエリア",
     ideControl: "AI IDE コマンドコントロールセンター",
-    debug: "DEBUG実行",
-    build: "BUILD実行",
-    runApp: "アプリ起動",
-    commandSent: "AI IDEにコマンドを送信しました：",
+    debug: "デバッグ実行",
+    build: "ビルド実行",
+    runApp: "アプリ実行",
+    commandSent: "AI IDEにコマンドを送信しました:",
+    noIssues: "現在、BUGとしてマークされたタスクはありません。",
+    noHistory: "操作履歴はまだありません",
+    commitsDeveloping: "Gitコミット履歴の統合は開発中です...",
     proposal: {
-        issues: "課題管理案：タスクシステムとバグ報告を統合し、コード変更とIssue IDを自動リンク。",
-        commits: "コミット履歴案：Gitツリーを視覚化し、コミットをクリックしてタスクとコード変更の詳細を確認。",
-        history: "操作履歴案：システムのコア操作とAIの変更履歴を記録し、コードのロールバックをサポート。"
+        issues: "課題トラッキング: タスクシステムとバグ報告を統合し、コード変更をIssue IDと自動リンクします。",
+        commits: "コミット履歴: Gitツリーを視覚化し、コミットをクリックして関連タスクとコードの詳細はを確認できます。",
+        history: "操作履歴: システムのコア操作とAIの変更履歴を記録し、バージョンのロールバックと監査をサポートします。"
     }
   },
   settings: {
     title: "システム設定",
     subtitle: "コアコンソール /// PREFERENCES_V2",
     general: {
-        title: "一般設定",
-        language: "表示言語",
+        title: "一般",
+        language: "インターフェース言語",
         languageDesc: "システムの主要な表示言語を選択します。",
         profile: "ユーザープロファイル",
-        profileDesc: "現在のアクティブなワークスペース設定によって管理されます。",
-        adminAccess: "管理者権限",
+        profileDesc: "現在のワークスペース設定で管理されます。",
+        adminAccess: "管理者アクセス",
         workspace: "プロジェクトワークスペース",
-        workspaceDesc: "ローカルディレクトリの .taskrails ファイルとタスクを同期します。",
+        workspaceDesc: "ローカルプロジェクトディレクトリ内の .taskrails ファイルにタスクを同期します。",
         pickFolder: "フォルダを選択",
-        workspaceLinked: "リンク済み",
-        notLinked: "未リンク"
+        workspaceLinked: "プロジェクト連携済み",
+        notLinked: "未連携"
     },
     protocols: {
-        title: "接続プロトコル",
+        title: "リンクプロトコル",
         broadcast: "IDブロードキャスト",
-        broadcastDesc: "MCPを介して接続されたエージェントに役割の変更を自動的にアナウンスします。",
+        broadcastDesc: "MCP経由で接続されたエージェントにロールの変更を自動通知します。",
         airlock: "ハードリセット (エアロック)",
-        airlockDesc: "コンテキスト切り替え時にIDE履歴を強制的に消去します。",
+        airlockDesc: "コンテキスト切り替え時にIDEの履歴を強制的にクリアします。",
         comingSoon: "近日公開"
     },
     ai: {
@@ -184,7 +213,7 @@ export const ja_JP = {
         saveError: "AI設定の保存に失敗しました",
         delete: "キーを削除",
         storedKeys: "保存済みキー",
-        noKeys: "保存されたキーはありません",
+        noKeys: "キーはまだ保存されていません",
         providers: {
             openrouter: "OpenRouter (推奨)",
             openai: "OpenAI",
@@ -200,15 +229,53 @@ export const ja_JP = {
     }
   },
   airlock: {
-    title: "エアロック制御 // コードレビュープロトコル",
+    title: "エアロックコントロール // コードレビュープロトコル",
     status: {
         pending: "承認待ち",
         usage: "トークン使用量",
         risk: "リスク"
     },
+    risks: {
+        low: "低",
+        medium: "中",
+        high: "高"
+    },
     actions: {
         reject: "拒否",
         approve: "変更を承認"
+    }
+  },
+  instruction: {
+    title: "使用プロトコル",
+    subtitle: "オペレーショナルマニュアル",
+    banner: "TaskRailsコマンドセンターへようこそ。このガイドでは、AIアーキテクトとカンバンシステムを活用して開発ワークフローを究極に向上させる方法を説明します。",
+    modules: {
+      objectives: {
+        title: "Mission Objectives",
+        desc: "プロジェクトのコアブレインです。AIアーキテクトと対話して、フルスタックの技術開発計画を生成します。計画はワンクリックでカンバンに「デプロイ」できます。"
+      },
+      board: {
+        title: "Mission Board",
+        desc: "動的なタスク管理システムです。ドラッグ＆ドロップ、フェーズソート、優先度タグをサポートしています。AI生成タスクは自動的にフェーズに分類されます。"
+      },
+      role: {
+        title: "Role Control",
+        desc: "異なるAIエージェントを設定します。開発者、レビュアー、アーキテクトごとに独自のシステムプロンプトを設定し、AIの思考モードを切り替えます。"
+      }
+    },
+    workflow: {
+      title: "標準ワークフロー",
+      step1: { title: "計画開始", desc: "Mission Objectivesページに移動し、AIコンサルトを使用してAIとの対話を開始します。" },
+      step2: { title: "仕様生成", desc: "合意後、「AI仕様を適用」をクリックすると、すべての項目が自動的に入力されます。" },
+      step3: { title: "タスク展開", desc: "「DEPLOY TO MISSION BOARD」をクリックして、Markdownリストをカンバンカードに変換します。" },
+      step4: { title: "開発実行", desc: "カンバンでタスクステータスを管理し、Engineering Historyですべての変更を追跡します。" }
+    },
+    advanced: {
+      title: "高度な戦術",
+      mcp: { title: "MCPサポート", desc: "Model Context Protocolのサポートにより、AIエージェントがカンバンの状態やDBの内容に直接アクセスできるようになります。" },
+      lang: { title: "多言語サポート", desc: "多言語の開発コンテキストをフルサポートし、AIとのシームレスなコミュニケーションを保証します。" },
+      ui: { title: "Cyberpunk UI", desc: "高速レスポンスのReact 19 + Framer Motionインターフェースが視覚的な疲労を軽減します。" },
+      tip: "「優れたAI計画は成功の半分です。タスクをデプロイする前に、## Phaseヘッダーが正しく設定されているか確認してください。これがカンバンのセクションを決定します。」"
     }
   }
 };

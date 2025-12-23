@@ -9,11 +9,14 @@ import EngineeringPage from "./components/features/EngineeringPage";
 import RoleSettingsPage, { AgentRole } from "./components/features/RoleSettingsPage";
 import MissionsPage from "./components/features/MissionsPage";
 import SpecPage from "./components/features/SpecPage";
+import InstructionPage from "./components/features/InstructionPage";
+import AiChatWindow from "./components/features/AiChatWindow"; // New Import
 import { useTranslation } from "./hooks/useTranslation";
 import Toast, { ToastType } from "./components/common/Toast";
 import * as dbApi from "./api/db";
 import { invoke } from "@tauri-apps/api/core";
-import { generateTaskMarkdown } from "./utils/mdExport";
+import { generateProjectContext } from "./utils/mdExport";
+import { parseProjectContext } from "./utils/mdImport";
 
 interface ToastItem {
     id: string;
@@ -22,6 +25,11 @@ interface ToastItem {
 }
 
 function App() {
+  // Check for standalone window route
+  if (window.location.pathname === '/chat') {
+      return <AiChatWindow />;
+  }
+
   const t = useTranslation();
   const [isAirlockOpen, setAirlockOpen] = useState(false);
   const [currentView, setCurrentView] = useState('kanban');
@@ -39,27 +47,40 @@ function App() {
   // State from database
   const [tasks, setTasks] = useState<Task[]>([]);
   const [roles, setRoles] = useState<AgentRole[]>([]);
+  const [lastSyncHash, setLastSyncHash] = useState<string>('');
 
   // Load data from database on mount
   useEffect(() => {
     const loadData = async () => {
-      console.log('[App] Starting data load from DB...');
+      console.log('[App] Starting data load...');
       try {
         const [dbTasks, dbRoles] = await Promise.all([
           dbApi.fetchTasks(),
           dbApi.fetchRoles()
         ]);
         
-        console.log('[App] Loaded tasks from DB:', dbTasks.length, dbTasks);
-        console.log('[App] Loaded roles from DB:', dbRoles.length, dbRoles);
+        // Attempt to read from workspace .taskrails for any updates
+        const workspaceContent = await invoke<string | null>('read_workspace_file');
         
-        // The user explicitly asked NOT to have sample tasks on every start.
+        if (workspaceContent) {
+           const { tasks: wsTasks, roles: wsRoles } = parseProjectContext(workspaceContent);
+           
+           // If DB is empty but WS has data
+           if (dbTasks.length === 0 && wsTasks.length > 0) {
+             console.log('[App] DB is empty, importing from workspace .taskrails');
+             setTasks(wsTasks);
+             setRoles(wsRoles);
+             // Persist imported data to DB
+             for (const t of wsTasks) await dbApi.createTask(t);
+             for (const r of wsRoles) await dbApi.createRole(r);
+             return;
+           }
+        }
+
         setTasks(dbTasks);
         setRoles(dbRoles);
-        console.log('[App] Data load complete!');
       } catch (err) {
-        console.error('[App] Failed to load data from DB:', err);
-        // Fallback to in-memory
+        console.error('[App] Failed to load data:', err);
         setTasks(initialTasks);
         setRoles([]);
       }
@@ -67,14 +88,19 @@ function App() {
     loadData();
   }, []);
 
-  // Sync tasks to workspace file whenever tasks change
+  // Sync tasks & roles to workspace file whenever they change
   useEffect(() => {
-    if (tasks.length > 0) {
-      const content = generateTaskMarkdown(tasks);
-      invoke('write_workspace_file', { content })
-        .catch(err => console.error('[App] Failed to sync to workspace:', err));
+    if (tasks.length > 0 || roles.length > 0) {
+      const content = generateProjectContext(tasks, roles);
+      const currentHash = btoa(unescape(encodeURIComponent(content))); // Simple hash
+      
+      if (currentHash !== lastSyncHash) {
+        setLastSyncHash(currentHash);
+        invoke('write_workspace_file', { content })
+          .catch(err => console.error('[App] Failed to sync to workspace:', err));
+      }
     }
-  }, [tasks]);
+  }, [tasks, roles, lastSyncHash]);
 
   // Separate default and custom roles
   const customRoles = useMemo(() => roles.filter(r => r.isDefault === false), [roles]);
@@ -268,6 +294,9 @@ function App() {
                 )}
                 
                 <div className="flex-1 min-h-0">
+                    {currentView === 'manual' && (
+                        <InstructionPage />
+                    )}
                     {currentView === 'specs' && (
                         <SpecPage 
                             onInjectTasks={handleInjectTasksFromSpec}

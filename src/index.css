@@ -4,41 +4,91 @@
 
 @layer base {
   body {
-    @apply bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-300 overflow-hidden;
-    font-family: "Inter", "Noto Sans TC", "Microsoft JhengHei", "Heiti TC",
-      sans-serif;
+    @apply bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-300 overflow-hidden select-none;
+    font-family: "Outfit", "Inter", "Noto Sans TC", sans-serif;
+  }
+
+  /* Selectable text in markdown/content areas */
+  .selectable {
+    @apply select-text;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-md border border-white/10;
+  }
+
+  .cyber-button {
+    @apply relative overflow-hidden transition-all duration-300 hover:shadow-[0_0_15px_rgba(242,153,74,0.3)];
+  }
+
+  .cyber-input {
+    @apply bg-black/40 border border-border-dark focus:border-primary/50 focus:ring-1 focus:ring-primary/20 transition-all outline-none;
   }
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-surface-light dark:bg-surface-dark;
+  @apply bg-transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 dark:bg-[#2D2D35] rounded-sm;
+  @apply bg-white/10 rounded-full transition-colors;
 }
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-primary;
 }
 
+/* Animations */
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+    filter: blur(8px);
+  }
+  50% {
+    opacity: 0.8;
+    filter: blur(12px);
+  }
+}
+
+.animate-glow {
+  animation: pulse-glow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
 /* Scanlines Effect */
 .scanlines {
   background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0),
-    rgba(255, 255, 255, 0) 50%,
-    rgba(0, 0, 0, 0.05) 50%,
-    rgba(0, 0, 0, 0.05)
-  );
-  background-size: 100% 4px;
+      to bottom,
+      rgba(18, 16, 16, 0) 50%,
+      rgba(0, 0, 0, 0.05) 50%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 0, 0, 0.01),
+      rgba(0, 255, 0, 0.01),
+      rgba(0, 0, 255, 0.01)
+    );
+  background-size: 100% 4px, 3px 100%;
   pointer-events: none;
   position: fixed;
   inset: 0;
   z-index: 9999;
   mix-blend-mode: overlay;
-  opacity: 0.5;
+  opacity: 0.3;
+}
+
+/* Grid Background */
+.bg-grid {
+  background-size: 40px 40px;
+  background-image: linear-gradient(
+      to right,
+      rgba(255, 255, 255, 0.02) 1px,
+      transparent 1px
+    ),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
 }
