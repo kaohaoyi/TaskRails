@@ -6,7 +6,10 @@ fn greet(name: &str) -> String {
 
 mod commands;
 mod db;
+mod git_ops;
 mod mcp;
+mod satellite;
+mod sentinel;
 mod state_machine;
 mod utils;
 
