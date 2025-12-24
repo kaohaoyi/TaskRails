@@ -49,6 +49,18 @@ pub fn run() {
                 mcp::sse::start_sse_server(handle).await;
             });
 
+            // Spawn Satellite Server (Actix System)
+            std::thread::spawn(move || {
+                let sys = actix_rt::System::new();
+                match sys.block_on(async move { satellite::start_server(".".to_string()).await }) {
+                    Ok(_) => println!("[Satellite] Server stopped gracefully"),
+                    Err(e) => eprintln!("[Satellite] Server error: {}", e),
+                }
+                // sys.run() is handled by block_on for the future,
+                // but actix-web usually requires sys.run() for the arbiter.
+                // start_server calls .run().await which blocks.
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

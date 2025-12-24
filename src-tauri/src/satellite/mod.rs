@@ -1,6 +1,4 @@
-pub mod server {
-    pub async fn start() {
-        println!("Satellite Server Starting...");
-        // TODO: Implement Actix Web Server
-    }
-}
+pub mod broadcaster;
+pub mod server;
+
+pub use server::start_server;

@@ -40,7 +40,9 @@ reqwest = { version = "0.12", features = ["json", "stream"] }
 
 # v2.6 Architecture Dependencies
 actix-web = "4"
-actix-ws = "0.3"
+actix-ws = "0.3" # Note: This might be redundant if using actix-web-actors
+actix-web-actors = "4"
+actix = "0.13"
 actix-rt = "2"
 git2 = { version = "0.20", features = ["ssh"] }
 bollard = "0.18"
