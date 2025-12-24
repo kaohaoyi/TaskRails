@@ -92,7 +92,8 @@ pub fn run() {
             commands::execute_ai_chat,
             commands::get_project_spec,
             commands::update_project_spec,
-            commands::open_chat_window
+            commands::open_chat_window,
+            commands::get_available_skills
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

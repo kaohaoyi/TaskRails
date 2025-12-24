@@ -82,6 +82,12 @@ pub async fn execute_ai_chat(
     client.execute(request).await
 }
 
+#[tauri::command]
+pub fn get_available_skills() -> Result<Vec<crate::utils::skills::SkillDefinition>, String> {
+    // TODO: Get workspace root from DB or context. For now using "."
+    Ok(crate::utils::skills::SkillLoader::load_skills("."))
+}
+
 // ============ Task Commands ============
 #[tauri::command]
 pub fn get_tasks(db_state: State<'_, DbState>) -> Result<Vec<TaskData>, String> {
