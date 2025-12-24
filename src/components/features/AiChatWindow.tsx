@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Sparkles, Send, Trash2, Copy, Square, Settings as SettingsIcon, MessageSquarePlus, History, Save } from 'lucide-react';
 import { useTranslation } from '../../hooks/useTranslation';
 import { invoke } from '@tauri-apps/api/core';
-import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import clsx from 'clsx';
 import { PROVIDER_MODELS } from '../../constants/ai-models';
 
@@ -34,16 +33,7 @@ export default function AiChatWindow() {
     const [systemPrompt, setSystemPrompt] = useState<string>(st.aiChat.defaultSystemPrompt);
     const [showPromptEdit, setShowPromptEdit] = useState(false);
 
-    // Intercept Close Event to Hide instead of Close
-    useEffect(() => {
-        const init = async () => {
-            const win = WebviewWindow.getCurrent();
-            await win.listen('tauri://close-requested', async () => {
-                await win.hide();
-            });
-        };
-        init();
-    }, []);
+
 
     // Initial Load
     useEffect(() => {
