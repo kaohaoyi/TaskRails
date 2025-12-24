@@ -92,7 +92,7 @@ fn write_local_env(port: u16, token: &str, workspace_root: &str) -> std::io::Res
         "satellite_token": token
     });
 
-    fs::write(path, serde_json::to_string_pretty(&content)?)?;
+    fs::write(&path, serde_json::to_string_pretty(&content)?)?;
     println!("[Satellite] Wrote local_env.json to {:?}", path);
     Ok(())
 }

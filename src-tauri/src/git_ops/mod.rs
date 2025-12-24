@@ -1,5 +1,5 @@
 use git2::{Repository, StatusOptions};
-use std::path::{Path, PathBuf};
+// use std::path::{Path, PathBuf};
 
 #[derive(serde::Serialize, Clone)]
 pub struct GitStatus {

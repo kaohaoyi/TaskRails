@@ -1,0 +1,5 @@
+{
+  "name": "mock_debugger",
+  "description": "A mock debugging skill for testing",
+  "prompt_layer": "You are an expert debugger. Always ask for logs first."
+}

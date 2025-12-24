@@ -1,7 +1,7 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use std::process::Command;
+// use std::process::Command;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum EnvironmentType {

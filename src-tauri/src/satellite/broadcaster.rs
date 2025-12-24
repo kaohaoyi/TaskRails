@@ -1,5 +1,5 @@
 use actix::prelude::*;
-use actix_web_actors::ws;
+// use actix_web_actors::ws;
 use std::collections::HashSet;
 
 /// Message to broadcast to all connected satellites
@@ -52,7 +52,7 @@ impl Handler<Connect> for Broadcaster {
 impl Handler<Disconnect> for Broadcaster {
     type Result = ();
 
-    fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) {
+    fn handle(&mut self, _msg: Disconnect, _: &mut Context<Self>) {
         println!("[Satellite] Client disconnected");
         // Usually Recipient doesn't implement Hash/Eq perfectly for removal by value easily
         // in simplified scenarios, but let's try to keep track.
