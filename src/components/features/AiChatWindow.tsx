@@ -12,6 +12,12 @@ interface ChatSession {
     messages: { role: 'assistant' | 'user', content: string }[];
 }
 
+interface SkillDefinition {
+    name: string;
+    description: string;
+    prompt_layer: string;
+}
+
 export default function AiChatWindow() {
     const t = useTranslation();
     const st = t.specs;
@@ -32,6 +38,10 @@ export default function AiChatWindow() {
     const [availableProviders, setAvailableProviders] = useState<string[]>(['openai', 'google', 'anthropic']);
     const [systemPrompt, setSystemPrompt] = useState<string>(st.aiChat.defaultSystemPrompt);
     const [showPromptEdit, setShowPromptEdit] = useState(false);
+    
+    // Skills State
+    const [availableSkills, setAvailableSkills] = useState<SkillDefinition[]>([]);
+    const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
 
 
@@ -46,6 +56,13 @@ export default function AiChatWindow() {
                 }
             } catch (err) {
                 console.error('Failed to load chat history:', err);
+            }
+            // Load Skills
+            try {
+                const skills = await invoke<SkillDefinition[]>('get_available_skills');
+                setAvailableSkills(skills);
+            } catch (err) {
+                console.error('Failed to load skills:', err);
             }
         };
         load();
@@ -173,8 +190,18 @@ export default function AiChatWindow() {
         setIsThinking(true);
 
         try {
+            // Assemble System Prompt with Skills
+            let finalSystemPrompt = systemPrompt;
+            if (selectedSkills.length > 0) {
+                const skillPrompts = availableSkills
+                    .filter(s => selectedSkills.includes(s.name))
+                    .map(s => `[Skill: ${s.name}]\n${s.prompt_layer}`)
+                    .join('\n\n');
+                finalSystemPrompt += `\n\n=== ACTIVATED SKILLS ===\n${skillPrompts}`;
+            }
+
             const apiMessages = [
-                { role: 'system', content: systemPrompt },
+                { role: 'system', content: finalSystemPrompt },
                 ...newMessages
             ];
 
@@ -338,6 +365,36 @@ export default function AiChatWindow() {
                                 onChange={(e) => setSystemPrompt(e.target.value)}
                                 className="w-full bg-[#070708] border border-white/10 rounded-lg p-3 text-xs text-gray-400 font-mono leading-relaxed focus:outline-none focus:border-primary/30 min-h-[80px]"
                             />
+                        </div>
+                        
+                        {/* Skills Selection */}
+                        <div className="mt-4 border-t border-white/5 pt-4">
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-2 block">ACTIVE SKILLS (AGENT CAPABILITIES)</label>
+                            <div className="flex flex-wrap gap-2">
+                                {availableSkills.map(skill => (
+                                    <button
+                                        key={skill.name}
+                                        onClick={() => {
+                                            setSelectedSkills(prev => 
+                                                prev.includes(skill.name) 
+                                                    ? prev.filter(n => n !== skill.name)
+                                                    : [...prev, skill.name]
+                                            );
+                                        }}
+                                        className={clsx(
+                                            "text-[10px] px-2 py-1 rounded border transition-colors flex items-center gap-1",
+                                            selectedSkills.includes(skill.name) 
+                                                ? "bg-primary/20 border-primary text-primary font-bold" 
+                                                : "bg-white/5 border-transparent text-gray-500 hover:text-gray-300"
+                                        )}
+                                        title={skill.description}
+                                    >
+                                        <div className={clsx("w-1.5 h-1.5 rounded-full", selectedSkills.includes(skill.name) ? "bg-primary" : "bg-gray-600")} />
+                                        {skill.name}
+                                    </button>
+                                ))}
+                                {availableSkills.length === 0 && <span className="text-[10px] text-gray-700 italic">No skills files found in .meta/skills</span>}
+                            </div>
                         </div>
                     </div>
                 )}
