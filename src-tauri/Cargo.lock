@@ -4640,6 +4640,7 @@ dependencies = [
  "futures",
  "git2",
  "rand 0.8.5",
+ "regex",
  "reqwest",
  "rfd",
  "rusqlite",

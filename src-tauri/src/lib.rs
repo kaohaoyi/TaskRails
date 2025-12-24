@@ -93,7 +93,9 @@ pub fn run() {
             commands::get_project_spec,
             commands::update_project_spec,
             commands::open_chat_window,
-            commands::get_available_skills
+            commands::get_available_skills,
+            commands::check_environment,
+            commands::analyze_linter_output
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

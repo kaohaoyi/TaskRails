@@ -48,3 +48,4 @@ git2 = { version = "0.20", features = ["ssh"] }
 bollard = "0.18"
 uuid = { version = "1", features = ["v4", "serde"] } # Ensure UUID generation
 rand = "0.8" # For random port/token generation
+regex = "1" # For Sentinel Linter parsing

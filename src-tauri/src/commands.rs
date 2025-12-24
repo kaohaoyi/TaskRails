@@ -88,6 +88,17 @@ pub fn get_available_skills() -> Result<Vec<crate::utils::skills::SkillDefinitio
     Ok(crate::utils::skills::SkillLoader::load_skills("."))
 }
 
+// ============ Sentinel Commands ============
+#[tauri::command]
+pub fn check_environment() -> crate::sentinel::EnvironmentType {
+    crate::sentinel::Sentinel::check_environment()
+}
+
+#[tauri::command]
+pub fn analyze_linter_output(output: String, format: String) -> Vec<crate::sentinel::LintError> {
+    crate::sentinel::Sentinel::parse_linter_output(&output, &format)
+}
+
 // ============ Task Commands ============
 #[tauri::command]
 pub fn get_tasks(db_state: State<'_, DbState>) -> Result<Vec<TaskData>, String> {
