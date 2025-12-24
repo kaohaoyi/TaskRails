@@ -37,3 +37,12 @@ chrono = { version = "0.4", features = ["serde"] }
 futures = "0.3"
 tokio-stream = { version = "0.1", features = ["sync"] }
 reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# v2.6 Architecture Dependencies
+actix-web = "4"
+actix-ws = "0.3"
+actix-rt = "2"
+git2 = { version = "0.20", features = ["ssh"] }
+bollard = "0.18"
+uuid = { version = "1", features = ["v4", "serde"] } # Ensure UUID generation
+rand = "0.8" # For random port/token generation
