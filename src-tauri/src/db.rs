@@ -99,6 +99,18 @@ pub fn init(app_handle: &tauri::AppHandle) -> Result<DbState> {
         [],
     )?;
 
+    // Experience Library Table
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS experiences (
+            id TEXT PRIMARY KEY,
+            content TEXT NOT NULL,
+            tags TEXT, -- JSON array of tags
+            status TEXT DEFAULT 'pending', -- pending, approved, rejected
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )",
+        [],
+    )?;
+
     // Insert default roles if not exist
     let default_roles = vec![
         (
