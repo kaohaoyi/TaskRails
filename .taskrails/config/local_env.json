@@ -1,0 +1,18 @@
+{
+  "node": {
+    "path": "node",
+    "version": "current"
+  },
+  "cargo": {
+    "path": "C:\\Users\\kaoha\\.cargo\\bin\\cargo.exe",
+    "version": "stable"
+  },
+  "docker": {
+    "available": false,
+    "mode": "native"
+  },
+  "satellite": {
+    "token": "MANUAL_OVERRIDE_TOKEN",
+    "port": 3002
+  }
+}

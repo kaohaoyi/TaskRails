@@ -11,6 +11,11 @@ import MissionsPage from "./components/features/MissionsPage";
 import SpecPage from "./components/features/SpecPage";
 import InstructionPage from "./components/features/InstructionPage";
 import AiChatWindow from "./components/features/AiChatWindow"; // New Import
+import OpsDashboard from "./components/features/OpsDashboard"; // New Import
+import AgentLab from "./components/features/AgentLab"; // v2.6
+import Planner from "./components/features/Planner"; // v2.6
+import ExperienceLibrary from './components/features/ExperienceLibrary'; // v2.6
+import MemoryBankViewer from './components/features/MemoryBankViewer'; // v1.1
 import { useTranslation } from "./hooks/useTranslation";
 import Toast, { ToastType } from "./components/common/Toast";
 import * as dbApi from "./api/db";
@@ -322,6 +327,7 @@ function App() {
                         />
                     )}
                     {currentView === 'settings' && <SettingsPage />}
+                    {currentView === 'ops' && <OpsDashboard />}
                     {currentView === 'roleSettings' && (
                         <RoleSettingsPage 
                             roles={customRoles} 
@@ -329,6 +335,10 @@ function App() {
                             onDeleteRole={handleDeleteRole} 
                         />
                     )}
+                    {currentView === 'agent-lab' && <AgentLab />}
+                    {currentView === 'knowledge' && <ExperienceLibrary />}
+                    {currentView === 'memory-bank' && <MemoryBankViewer />}
+                    {currentView === 'planner' && <Planner />}
                     {currentView === 'issues' && <EngineeringPage type="issues" tasks={tasks} onShowToast={showToast} />}
                     {currentView === 'commits' && <EngineeringPage type="commits" tasks={tasks} onShowToast={showToast} />}
                     {currentView === 'history' && <EngineeringPage type="history" tasks={tasks} onShowToast={showToast} />}

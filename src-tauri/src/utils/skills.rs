@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SkillDefinition {
@@ -35,6 +35,7 @@ impl SkillLoader {
     }
 
     /// Resolve skills by name (simple linear search for MVP)
+    #[allow(dead_code)]
     pub fn resolve_skills(workspace_root: &str, skill_names: &[String]) -> Vec<SkillDefinition> {
         let all_skills = Self::load_skills(workspace_root);
         all_skills

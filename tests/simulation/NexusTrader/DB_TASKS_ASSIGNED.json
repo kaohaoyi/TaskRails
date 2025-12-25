@@ -1,0 +1,26 @@
+[
+  {
+    "id": "task_auth_01",
+    "title": "Implement JWT Login using `mod_auth`",
+    "status": "doing",
+    "phase": "2.1 Authentication",
+    "priority": "3",
+    "assignee": "role_nexus_architect"
+  },
+  {
+    "id": "task_auth_02",
+    "title": "Design 2FA UI flow",
+    "status": "todo",
+    "phase": "2.1 Authentication",
+    "priority": "3",
+    "assignee": null
+  },
+  {
+    "id": "task_data_01",
+    "title": "Connect to Binance WebSocket",
+    "status": "todo",
+    "phase": "2.2 Market Data",
+    "priority": "3",
+    "assignee": null
+  }
+]

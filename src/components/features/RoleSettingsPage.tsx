@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Bot, User, Plus, Trash2, Shield, Cpu, Eye } from 'lucide-react';
+import { Bot, User, Plus, Trash2, Shield, Cpu, Eye, Sparkles } from 'lucide-react';
 import clsx from 'clsx';
 import { useTranslation } from '../../hooks/useTranslation';
+import { invoke } from '@tauri-apps/api/core';
 
 export interface AgentRole {
     id: string;
@@ -157,9 +158,17 @@ export default function RoleSettingsPage({ roles, onAddRole, onDeleteRole }: Rol
                 {/* System Prompt - Only show for AI type */}
                 {newRoleType === 'ai' && (
                     <div className="mb-4">
-                        <label className="block text-xs text-gray-500 mb-1">
-                            AI 指令 (System Prompt)
-                            <span className="text-gray-600 ml-2">- 透過 MCP 傳送給 AI IDE</span>
+                        <label className="block text-xs text-gray-500 mb-1 flex items-center justify-between">
+                            <span>
+                                AI 指令 (System Prompt)
+                                <span className="text-gray-600 ml-2">- 透過 MCP 傳送給 AI IDE</span>
+                            </span>
+                            <button 
+                                onClick={() => invoke('open_chat_window')}
+                                className="flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-300 font-bold uppercase tracking-wider transition-colors"
+                            >
+                                <Sparkles size={10} /> AI Suggest
+                            </button>
                         </label>
                         <textarea 
                             value={newSystemPrompt}

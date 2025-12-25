@@ -1,0 +1,1 @@
+   Compiling taskrails v1.0.0 (E:\Dev\desktop\taskrails\src-tauri)

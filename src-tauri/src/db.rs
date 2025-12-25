@@ -103,9 +103,11 @@ pub fn init(app_handle: &tauri::AppHandle) -> Result<DbState> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS experiences (
             id TEXT PRIMARY KEY,
+            pattern_hash TEXT,
             content TEXT NOT NULL,
+            solution TEXT,
             tags TEXT, -- JSON array of tags
-            status TEXT DEFAULT 'pending', -- pending, approved, rejected
+            status TEXT DEFAULT 'pending', -- pending, verified, rejected
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )",
         [],

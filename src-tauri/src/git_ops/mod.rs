@@ -1,7 +1,8 @@
+#![allow(dead_code)]
 use git2::{Repository, StatusOptions};
 // use std::path::{Path, PathBuf};
 
-#[derive(serde::Serialize, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 pub struct GitStatus {
     pub clean: bool,
     pub modified_files: Vec<String>,

@@ -69,7 +69,15 @@ async fn ws_route(
     req: HttpRequest,
     stream: web::Payload,
     broadcaster: web::Data<Addr<Broadcaster>>,
+    state: web::Data<SatelliteState>,
 ) -> Result<HttpResponse, Error> {
+    // 1. Security Check (Token Validation)
+    if !check_auth(&req, &state.token) {
+        println!("[Satellite] Connection Rejected: Invalid Token");
+        return Ok(HttpResponse::Unauthorized().body("Invalid Satellite Token"));
+    }
+
+    // 2. Start WebSocket
     ws::start(
         SatelliteSession {
             broadcaster: broadcaster.get_ref().clone(),
@@ -77,6 +85,26 @@ async fn ws_route(
         &req,
         stream,
     )
+}
+
+fn check_auth(req: &HttpRequest, expected_token: &str) -> bool {
+    // Check Authorization header: "Bearer <token>"
+    if let Some(auth_header) = req.headers().get("Authorization") {
+        if let Ok(auth_str) = auth_header.to_str() {
+            if auth_str.starts_with("Bearer ") {
+                let token = &auth_str[7..];
+                return token == expected_token;
+            }
+        }
+    }
+
+    // Fallback: Check Query Param ?token=... (Useful for browser tests)
+    let query = req.query_string();
+    if query.contains(&format!("token={}", expected_token)) {
+        return true;
+    }
+
+    false
 }
 
 /// Write environment config to .taskrails/config/local_env.json
@@ -87,14 +115,25 @@ fn write_local_env(port: u16, token: &str, workspace_root: &str) -> std::io::Res
     fs::create_dir_all(&config_dir)?;
 
     let path = config_dir.join("local_env.json");
+
+    // Match the LocalEnv Structure
     let content = serde_json::json!({
-        "satellite_port": port,
-        "satellite_token": token
+        "node": { "path": "", "version": "" },
+        "cargo": { "path": "", "version": "" },
+        "docker": { "available": false, "mode": "native" },
+        "satellite": {
+            "token": token,
+            "port": port
+        }
     });
 
     fs::write(&path, serde_json::to_string_pretty(&content)?)?;
     println!("[Satellite] Wrote local_env.json to {:?}", path);
     Ok(())
+}
+
+struct SatelliteState {
+    token: String,
 }
 
 /// Start the Satellite WebSocket Server
@@ -112,10 +151,16 @@ pub async fn start_server(workspace_root: String) -> std::io::Result<()> {
         "[Satellite] Starting WebSocket Server on 127.0.0.1:{}",
         port
     );
+    println!("[Satellite] Security Token: {}", token);
+
+    let state = web::Data::new(SatelliteState {
+        token: token.clone(),
+    });
 
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(broadcaster.clone()))
+            .app_data(state.clone())
             .route("/ws", web::get().to(ws_route))
     })
     .bind(("127.0.0.1", port))?

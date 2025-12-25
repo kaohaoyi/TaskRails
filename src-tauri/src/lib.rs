@@ -5,10 +5,12 @@ fn greet(name: &str) -> String {
 }
 
 mod commands;
+mod config;
 mod db;
 mod git_ops;
 mod mcp;
-mod satellite;
+mod memory_bank;
+pub mod satellite;
 mod sentinel;
 mod state_machine;
 mod utils;
@@ -95,7 +97,14 @@ pub fn run() {
             commands::open_chat_window,
             commands::get_available_skills,
             commands::check_environment,
-            commands::analyze_linter_output
+            commands::analyze_linter_output,
+            // Experience Commands
+            commands::log_experience,
+            commands::search_experiences,
+            // Memory Bank Commands
+            commands::get_memory_list,
+            commands::get_memory,
+            commands::update_memory
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

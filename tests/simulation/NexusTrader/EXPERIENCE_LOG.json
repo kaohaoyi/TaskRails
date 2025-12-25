@@ -1,0 +1,7 @@
+{
+    "id": "exp_lock_free_queue_001",
+    "content": "Implemented a lock-free ring buffer for order processing to reduce latency.",
+    "solution": "pub struct RingBuffer<T> { ... implementation ... }",
+    "tags": ["rust", "performance", "concurrency"],
+    "status": "verified"
+}

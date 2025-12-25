@@ -1,5 +1,6 @@
-import { LayoutDashboard, ClipboardList, Settings, History, Bug, GitCommit, Users, FileText, BookOpen } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Settings, History, Bug, GitCommit, FileText, BookOpen, Activity, BrainCircuit, Bot, Brain } from "lucide-react";
 import { useTranslation } from "../../hooks/useTranslation";
+import { invoke } from "@tauri-apps/api/core";
 import clsx from "clsx";
 
 interface SidebarProps {
@@ -20,21 +21,54 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 space-y-6 custom-scrollbar">
+        
+        {/* Orchestration Phase */}
         <div>
            <div className="px-3 mb-3 flex items-center justify-between">
-              <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">Management</span>
-              <span className="w-1 h-1 bg-primary rounded-full animate-glow"></span>
+              <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">Orchestration</span>
+              <span className="w-1 h-1 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
            </div>
            
             <div className="space-y-1">
-                <NavItem active={currentView === 'manual'} icon={BookOpen} label={t.manual} onClick={() => onNavigate('manual')} />
+                    <NavItem 
+                        icon={BrainCircuit} 
+                        label="Knowledge" 
+                        active={currentView === 'knowledge'} 
+                        onClick={() => onNavigate('knowledge')} 
+                    />
+                    <NavItem 
+                        icon={Bot} 
+                        label="Agent Lab" 
+                        active={currentView === 'agent-lab'} 
+                        onClick={() => onNavigate('agent-lab')}
+                        badge="V1.0"
+                    />
+                <NavItem active={currentView === 'planner'} icon={LayoutDashboard} label="Planner" onClick={() => onNavigate('planner')} />
+                <NavItem 
+                    icon={Brain} 
+                    label="Memory Bank" 
+                    active={currentView === 'memory-bank'} 
+                    onClick={() => onNavigate('memory-bank')}
+                    badge="V1.1"
+                />
                 <NavItem active={currentView === 'specs'} icon={FileText} label={t.specs} onClick={() => onNavigate('specs')} />
-                <NavItem active={currentView === 'roleSettings'} icon={Users} label={t.roleSettings} onClick={() => onNavigate('roleSettings')} />
-                <NavItem active={currentView === 'kanban'} icon={LayoutDashboard} label={t.kanban} onClick={() => onNavigate('kanban')} />
-                <NavItem active={currentView === 'missions'} icon={ClipboardList} label={t.missions} onClick={() => onNavigate('missions')} />
+            </div>
+        </div>
+
+        {/* Execution Phase */}
+        <div>
+           <div className="px-3 mb-3">
+              <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">Execution</span>
+           </div>
+           
+            <div className="space-y-1">
+                <NavItem active={currentView === 'kanban'} icon={ClipboardList} label={t.kanban} onClick={() => onNavigate('kanban')} />
+                <NavItem active={currentView === 'missions'} icon={BookOpen} label={t.missions} onClick={() => onNavigate('missions')} />
+                <NavItem active={false} icon={Activity} label="AI Architect" onClick={() => invoke('open_chat_window')} />
             </div>
         </div>
         
+        {/* Engineering Support */}
         <div>
            <div className="px-3 mb-3">
               <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">{t.engineering}</span>
@@ -44,6 +78,17 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
                <NavItem active={currentView === 'issues'} icon={Bug} label={t.issues} onClick={() => onNavigate('issues')} />
                <NavItem active={currentView === 'commits'} icon={GitCommit} label={t.commits} onClick={() => onNavigate('commits')} />
                <NavItem active={currentView === 'history'} icon={History} label={t.history} onClick={() => onNavigate('history')} />
+           </div>
+        </div>
+
+        {/* Operations & Sentinel */}
+        <div>
+           <div className="px-3 mb-3">
+              <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">Operations</span>
+           </div>
+           
+           <div className="space-y-1">
+               <NavItem active={currentView === 'ops'} icon={Activity} label="Ops Center" onClick={() => onNavigate('ops')} />
            </div>
         </div>
       </nav>

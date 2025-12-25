@@ -1,0 +1,13 @@
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant RustCore
+    participant Binance
+
+    User->>Frontend: Click "Buy BTC"
+    Frontend->>RustCore: WebSocket Msg (Order)
+    RustCore->>RustCore: Validate Margin
+    RustCore->>Binance: API Execute Order
+    Binance-->>RustCore: 200 OK (Filled)
+    RustCore-->>Frontend: Update Portfolio
+    Frontend-->>User: Show Success Notification
