@@ -60,7 +60,12 @@ async fn message_handler(
 ) -> Json<serde_json::Value> {
     println!("Received MCP Request (SSE): {:?}", payload.method);
 
-    let response = crate::mcp::handle_mcp_request(payload, &state.handle).await;
+    let response_opt = crate::mcp::handle_mcp_request(payload, &state.handle).await;
 
-    Json(serde_json::to_value(response).unwrap())
+    if let Some(response) = response_opt {
+        Json(serde_json::to_value(response).unwrap())
+    } else {
+        // For notifications or ignored requests, return generic success (null or empty)
+        Json(serde_json::Value::Null)
+    }
 }

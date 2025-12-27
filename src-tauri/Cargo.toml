@@ -6,6 +6,14 @@ authors = ["you"]
 edition = "2021"
 default-run = "taskrails"
 
+[[bin]]
+name = "taskrails-mcp-stdio"
+path = "src/bin/mcp_stdio.rs"
+
+[[bin]]
+name = "taskrails"
+path = "src/main.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
@@ -50,3 +58,6 @@ bollard = "0.18"
 uuid = { version = "1", features = ["v4", "serde"] } # Ensure UUID generation
 rand = "0.8" # For random port/token generation
 regex = "1" # For Sentinel Linter parsing
+
+[dev-dependencies]
+rusqlite = { version = "0.33", features = ["bundled", "time"] }

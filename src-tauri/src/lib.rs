@@ -4,16 +4,16 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-mod commands;
+pub mod commands;
 mod config;
-mod db;
+pub mod db;
 mod git_ops;
-mod mcp;
-mod memory_bank;
+pub mod mcp;
+pub mod memory_bank;
 pub mod satellite;
 mod sentinel;
 mod state_machine;
-mod utils;
+pub mod utils;
 
 use state_machine::StateManager;
 use tauri::Manager;
@@ -43,6 +43,30 @@ pub fn run() {
         .manage(StateManager::new())
         .setup(|app| {
             let db_state = db::init(app.handle())?;
+
+            // Check if there's a saved workspace path and switch to project DB
+            {
+                let conn = db_state.conn.lock().unwrap();
+                let result: Option<String> = conn
+                    .query_row(
+                        "SELECT value FROM settings WHERE key = 'workspace_path'",
+                        [],
+                        |row| row.get(0),
+                    )
+                    .ok();
+
+                if let Some(workspace_path) = result {
+                    if std::path::Path::new(&workspace_path).exists() {
+                        drop(conn); // Release lock before switching
+                        if let Err(e) = db::switch_project(&db_state, &workspace_path) {
+                            eprintln!("[App] Failed to load project DB: {}", e);
+                        } else {
+                            println!("[App] Loaded project database from: {}", workspace_path);
+                        }
+                    }
+                }
+            }
+
             app.manage(db_state);
 
             let handle = app.handle().clone();
@@ -108,7 +132,10 @@ pub fn run() {
             // Vibe Core Commands
             commands::check_local_llm_connection,
             commands::refine_prompt,
-            commands::sync_active_tasks
+            commands::sync_active_tasks,
+            // Project Switching
+            commands::switch_project,
+            commands::get_current_workspace
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

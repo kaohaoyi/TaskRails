@@ -46,8 +46,8 @@ impl LocalLlmClient {
         Self {
             client: Client::new(),
             base_url: base_url.unwrap_or_else(|| DEFAULT_LM_STUDIO_URL.to_string()),
-            // Default model name often ignored by LM Studio in local mode, but good to have
-            model: model.unwrap_or_else(|| "qwen-2.5-7b-instruct".to_string()),
+            // Default model name. Found 'qwen2.5-7b-instruct' in user logs.
+            model: model.unwrap_or_else(|| "qwen2.5-7b-instruct".to_string()),
         }
     }
 
@@ -56,6 +56,12 @@ impl LocalLlmClient {
         user_input: &str,
         context: &str,
     ) -> Result<String, Box<dyn Error>> {
+        // Try to get current model from LM Studio if default fails
+        let model_to_use = self
+            .get_current_model()
+            .await
+            .unwrap_or_else(|| self.model.clone());
+
         let system_prompt = format!(
             "你是一個 TaskRails 的本地架構師 (Refiner)。\n\
             你的目標是將用戶模糊的指令轉化為專業的「工程 Prompt」，供雲端 AI 執行。\n\n\
@@ -80,7 +86,7 @@ impl LocalLlmClient {
         ];
 
         let req_body = ChatRequest {
-            model: self.model.clone(),
+            model: model_to_use.clone(),
             messages,
             temperature: 0.7,
             stream: false,
@@ -94,7 +100,9 @@ impl LocalLlmClient {
             .await?;
 
         if !resp.status().is_success() {
-            return Err(format!("Request failed: {}", resp.status()).into());
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            return Err(format!("LM Studio 請求失敗 ({}): {}\n\n提示：請確認 LM Studio 中已載入模型，且模型名稱為 '{}'", status, body, model_to_use).into());
         }
 
         let chat_resp: ChatResponse = resp.json().await?;
@@ -103,6 +111,35 @@ impl LocalLlmClient {
             Ok(choice.message.content.clone())
         } else {
             Err("No content received".into())
+        }
+    }
+
+    /// Try to get the first available model from LM Studio
+    async fn get_current_model(&self) -> Option<String> {
+        let url = if self.base_url.ends_with("/chat/completions") {
+            self.base_url.replace("/chat/completions", "/models")
+        } else {
+            "http://localhost:1234/v1/models".to_string()
+        };
+
+        #[derive(Deserialize)]
+        struct ModelsResponse {
+            data: Vec<ModelInfo>,
+        }
+        #[derive(Deserialize)]
+        struct ModelInfo {
+            id: String,
+        }
+
+        match self.client.get(&url).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                if let Ok(models) = resp.json::<ModelsResponse>().await {
+                    models.data.first().map(|m| m.id.clone())
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
     pub async fn check_connection(&self) -> bool {

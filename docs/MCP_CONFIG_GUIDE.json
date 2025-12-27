@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "taskrails": {
+      "command": "e:/Dev/desktop/taskrails/src-tauri/target/debug/taskrails-mcp-stdio.exe",
+      "args": []
+    }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "cargo": {
+    "path": "",
+    "version": ""
+  },
+  "docker": {
+    "available": false,
+    "mode": "native"
+  },
+  "node": {
+    "path": "",
+    "version": ""
+  },
+  "satellite": {
+    "port": 3002,
+    "token": "15f5b276-3ef8-4da1-b203-1f9c0ee07716"
+  }
+}

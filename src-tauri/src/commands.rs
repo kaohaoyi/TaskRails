@@ -697,6 +697,13 @@ pub async fn sync_active_tasks(
     tasks: Vec<TaskData>,
 ) -> Result<usize, String> {
     let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+    sync_tasks_logic(&conn, tasks).map_err(|e| e.to_string())
+}
+
+pub fn sync_tasks_logic(
+    conn: &rusqlite::Connection,
+    tasks: Vec<TaskData>,
+) -> Result<usize, rusqlite::Error> {
     let mut count = 0;
 
     for task in tasks {
@@ -716,15 +723,46 @@ pub async fn sync_active_tasks(
                     task.title,
                     task.description,
                     task.status,
-                    task.phase.unwrap_or_else(|| "PHASE 1".to_string()),
-                    task.priority.unwrap_or_else(|| "3".to_string()),
+                    task.phase.clone().unwrap_or_else(|| "PHASE 1".to_string()), // clone needed if used in loop? actually params takes ref
+                    task.priority.clone().unwrap_or_else(|| "3".to_string()),
                     task.tag,
                     task.assignee,
                     0
                 ],
-            ).map_err(|e| e.to_string())?;
+            )?;
             count += 1;
         }
     }
     Ok(count)
+}
+
+/// Switch to a different project's database
+/// This is called when user selects a new workspace folder
+#[tauri::command]
+pub fn switch_project(
+    db_state: State<'_, DbState>,
+    workspace_path: String,
+) -> Result<String, String> {
+    crate::db::switch_project(&db_state, &workspace_path)
+        .map_err(|e| format!("Failed to switch project: {}", e))?;
+
+    // Also save to global settings
+    let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES ('workspace_path', ?1)",
+        [&workspace_path],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(format!("Switched to project: {}", workspace_path))
+}
+
+/// Get current workspace info
+#[tauri::command]
+pub fn get_current_workspace(db_state: State<'_, DbState>) -> Result<Option<String>, String> {
+    let ws_guard = db_state
+        .current_workspace
+        .lock()
+        .map_err(|e| e.to_string())?;
+    Ok(ws_guard.clone())
 }

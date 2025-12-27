@@ -17,6 +17,7 @@ import ExperienceLibrary from './components/features/ExperienceLibrary'; // v2.6
 import MemoryBankViewer from './components/features/MemoryBankViewer'; // v1.1
 import ProjectSetupHub from './components/features/ProjectSetupHub'; // v2.7
 import ProjectSetupPopup from './components/features/ProjectSetupPopup'; // v2.7 Popup
+import AiIdeControlCenter from './components/features/AiIdeControlCenter'; // v1.1 IDE Control
 import { useTranslation } from "./hooks/useTranslation";
 import Toast, { ToastType } from "./components/common/Toast";
 import * as dbApi from "./api/db";
@@ -243,7 +244,20 @@ function App() {
         // Match task items: "1. Task Name" or "- Task Name"
         const taskMatch = line.match(/^(\d+\.|-)\s*(.+)/);
         if (taskMatch) {
-            const title = taskMatch[2].trim();
+            let title = taskMatch[2].trim();
+            let assignee: string | undefined;
+
+            // Extract @Assignee if present
+            const assigneeMatch = title.match(/@(\w+)/);
+            if (assigneeMatch) {
+                assignee = assigneeMatch[1]; // e.g. "ai_coder"
+                // Check if it's a known agent prefix, if not maybe prefix it? 
+                // User input might be "@codegen", we want "ai_codegen"? 
+                // Let's assume user/system writes the correct ID or we map it later.
+                // For now, keep as is.
+                title = title.replace(assigneeMatch[0], '').trim();
+            }
+
             if (title) {
                 const newTask: Task = {
                     id: `TSK-${Math.floor(Math.random() * 10000)}`,
@@ -252,6 +266,7 @@ function App() {
                     phase: currentPhase,
                     priority: '3',
                     tag: 'Spec',
+                    assignee: assignee, // Set parsed assignee
                     isReworked: false,
                     description: `來自專案說明書的任務。\n階段：${currentPhase}`
                 };
@@ -339,6 +354,7 @@ function App() {
                     {currentView === 'planner' && <Planner />}
                     {currentView === 'project-setup' && <ProjectSetupHub />}
                     {currentView === 'engineering' && <EngineeringPage tasks={tasks} onShowToast={showToast} />}
+                    {currentView === 'ai-ide-control' && <AiIdeControlCenter />}
                 </div>
             </div>
 

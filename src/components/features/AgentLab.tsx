@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Bot, Plus, Trash2, Edit3, Save, FolderOpen, AlertCircle, Copy, Check } from 'lucide-react';
+import { Bot, Plus, Trash2, Edit3, Save, FolderOpen, AlertCircle, Copy, Check, RotateCcw } from 'lucide-react';
 import clsx from 'clsx';
 import { invoke } from '@tauri-apps/api/core';
 
@@ -171,17 +171,44 @@ export default function AgentLab() {
         }
     };
 
+    // 重置所有 Agent 配置
+    const handleResetAll = () => {
+        if (!confirm('確定要清除所有專案的 Agent 配置嗎？此操作無法復原。')) return;
+        localStorage.removeItem(STORAGE_KEY);
+        setProjectAgentsList([]);
+        setSelectedProjectId(null);
+        setEditingAgent(null);
+    };
+
     return (
         <div className="h-full flex flex-col bg-[#0A0A0C] text-white p-8 overflow-hidden">
             {/* Header */}
-            <header className="mb-6">
-                <h1 className="text-2xl font-black uppercase tracking-widest flex items-center gap-3">
-                    <Bot className="text-primary" /> 
-                    AI 代理配置
-                </h1>
-                <p className="text-gray-500 text-xs mt-1 font-mono uppercase tracking-wider">
-                    管理各專案的 AI 生成代理角色
-                </p>
+            <header className="mb-6 flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-black uppercase tracking-widest flex items-center gap-3">
+                        <Bot className="text-primary" /> 
+                        AI 代理配置
+                    </h1>
+                    <p className="text-gray-500 text-xs mt-1 font-mono uppercase tracking-wider">
+                        管理各專案的 AI 生成代理角色
+                    </p>
+                </div>
+                {projectAgentsList.length > 0 && (
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={handleAddProject}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-lg border border-green-500/20 text-[10px] font-bold uppercase transition-colors"
+                        >
+                            <Plus size={14} /> 新增專案
+                        </button>
+                        <button 
+                            onClick={handleResetAll}
+                            className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/20 text-[10px] font-bold uppercase transition-colors"
+                        >
+                            <RotateCcw size={14} /> 重置全部
+                        </button>
+                    </div>
+                )}
             </header>
 
             {projectAgentsList.length === 0 ? (

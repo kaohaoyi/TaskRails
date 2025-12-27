@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Send, Trash2, Copy, Square, Settings as SettingsIcon, MessageSquarePlus, History, Save, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Sparkles, Send, Trash2, Copy, Square, Settings as SettingsIcon, MessageSquarePlus, History, Save, ToggleLeft, ToggleRight, Bot } from 'lucide-react';
 import { useTranslation } from '../../hooks/useTranslation';
 import { invoke } from '@tauri-apps/api/core';
 import clsx from 'clsx';
@@ -406,6 +406,32 @@ export default function AiChatWindow() {
                         </select>
                         </div>
                         <div className="flex-1"></div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        const context = messages.map(m => `## ${m.role === 'user' ? 'User' : 'Assistant'}\n${m.content}`).join('\n\n');
+                                        const fileContent = `# AI Chat Context Transfer\nTimestamp: ${new Date().toISOString()}\n\n${context}`;
+                                        
+                                        await invoke('update_memory', {
+                                            workspace: '.',
+                                            name: 'active_context',
+                                            content: fileContent
+                                        });
+                                        
+                                        alert("Context transferred to @active_context.md. Your AI IDE Agent can now read this.");
+                                    } catch (e) {
+                                        console.error(e);
+                                        alert("Failed to transfer context");
+                                    }
+                                }}
+                                className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-primary/70 hover:text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded transition-all"
+                                title="Write chat history to @active_context.md for IDE Agent"
+                            >
+                                <Bot size={12} /> Transfer to IDE
+                            </button>
+                        </div>
+
                         <button onClick={() => setShowPromptEdit(!showPromptEdit)} className="text-gray-500 hover:text-primary"><SettingsIcon size={12} /></button>
                 </div>
                 

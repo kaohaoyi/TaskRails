@@ -178,8 +178,8 @@ export default function SettingsPage() {
                                     onClick={handlePickFolder}
                                     className="bg-[#1A1A1F] border border-border-dark hover:border-primary/50 text-gray-300 px-4 py-2 rounded text-xs font-medium transition-colors flex items-center gap-2"
                                 >
-                                    <FolderSearch size={14} />
-                                    {t.general.pickFolder}
+                                    <FolderSearch size={14} className={clsx(workspacePath ? "text-green-400" : "text-gray-400")} />
+                                    {workspacePath ? t.general.workspace : t.general.pickFolder}
                                 </button>
                                 {workspacePath && (
                                     <div className="text-[10px] text-primary/70 font-mono truncate max-w-[200px]" title={workspacePath}>

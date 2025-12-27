@@ -1,4 +1,5 @@
 use crate::mcp::JsonRpcRequest;
+use serde_json::json;
 use tokio::io::{stdin, stdout, AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 pub async fn start_stdio_server(handle: tauri::AppHandle) {
@@ -19,20 +20,46 @@ pub async fn start_stdio_server(handle: tauri::AppHandle) {
                     continue;
                 }
 
-                if let Ok(req) = serde_json::from_str::<JsonRpcRequest>(trimmed) {
-                    let response = crate::mcp::handle_mcp_request(req, &handle).await;
-                    let response_json = serde_json::to_string(&response).unwrap();
+                eprintln!("[DEBUG] Received: {}", trimmed);
 
-                    if let Err(e) = stdout
-                        .write_all(format!("{}\n", response_json).as_bytes())
-                        .await
-                    {
-                        eprintln!("Failed to write to stdout: {}", e);
-                        break;
+                match serde_json::from_str::<JsonRpcRequest>(trimmed) {
+                    Ok(req) => {
+                        let response_opt = crate::mcp::handle_mcp_request(req, &handle).await;
+
+                        if let Some(response) = response_opt {
+                            let response_json = serde_json::to_string(&response).unwrap();
+
+                            if let Err(e) = stdout
+                                .write_all(format!("{}\n", response_json).as_bytes())
+                                .await
+                            {
+                                eprintln!("Failed to write to stdout: {}", e);
+                                break;
+                            }
+                            let _ = stdout.flush().await;
+                        }
                     }
-                    let _ = stdout.flush().await;
-                } else {
-                    eprintln!("Invalid JSON-RPC request received: {}", trimmed);
+                    Err(e) => {
+                        eprintln!("Failed to parse JSON: {} | Input: {}", e, trimmed);
+                        // Try to extract ID if possible to reply with error
+                        let id = if let Ok(val) = serde_json::from_str::<serde_json::Value>(trimmed)
+                        {
+                            val.get("id").cloned()
+                        } else {
+                            None
+                        };
+
+                        let err_resp = json!({
+                            "jsonrpc": "2.0",
+                            "error": {
+                                "code": -32700,
+                                "message": "Parse error"
+                            },
+                            "id": id
+                        });
+                        let _ = stdout.write_all(format!("{}\n", err_resp).as_bytes()).await;
+                        let _ = stdout.flush().await;
+                    }
                 }
             }
             Err(e) => {

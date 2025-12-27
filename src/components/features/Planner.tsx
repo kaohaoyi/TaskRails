@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Network, Save, Layers, AlertCircle, Maximize2, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Network, Save, Layers, AlertCircle, Maximize2, X, ChevronLeft, ChevronRight, Plus, Trash2, RotateCcw } from 'lucide-react';
 import mermaid from 'mermaid';
 import clsx from 'clsx';
 import { invoke } from '@tauri-apps/api/core';
@@ -100,14 +100,16 @@ const DEFAULT_DIAGRAMS: DiagramData[] = [
 
 // 解析 Active 節點
 function parseActiveNodes(code: string) {
-    const nodes: { id: string; text: string }[] = [];
-    // Regex matches: ID, optional ["Label"], :::active
-    const regex = /([a-zA-Z0-9_-]+)(?:\["?([^"\]]+)"?\])?:::active/g;
+    const nodes: { id: string; text: string; assignee?: string }[] = [];
+    // Regex matches: ID, optional ["Label"], :::active, optional _Assignee
+    // Examples: A:::active, A["Label"]:::active, A:::active_codegen
+    const regex = /([a-zA-Z0-9_-]+)(?:\s*\[['"]?(.*?)['"]?\])?\s*:::active(?:_([a-zA-Z0-9_]+))?/g;
     let match;
     while ((match = regex.exec(code)) !== null) {
         nodes.push({
             id: match[1],
-            text: match[2] || match[1] // Use ID if label is missing
+            text: match[2] || match[1], // Use ID if label is missing
+            assignee: match[3] ? `ai_${match[3]}` : undefined // Default prefix ai_ if agent specified
         });
     }
     return nodes;
@@ -125,7 +127,19 @@ export default function Planner() {
     const popupContainerRef = useRef<HTMLDivElement>(null);
 
     // 從 localStorage 載入 AI 分發的圖表
-    // ... existing useEffect ...
+    useEffect(() => {
+        const savedDiagrams = localStorage.getItem('taskrails_planner_diagrams');
+        if (savedDiagrams) {
+            try {
+                const parsed = JSON.parse(savedDiagrams);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setDiagrams(parsed);
+                }
+            } catch (e) {
+                console.error("Failed to load diagrams:", e);
+            }
+        }
+    }, []);
 
     // 當前編輯的圖表
     const currentDiagram = diagrams[activeTabIndex] || diagrams[0];
@@ -142,27 +156,42 @@ export default function Planner() {
         try {
             const activeNodes = parseActiveNodes(currentDiagram.code);
             if (activeNodes.length === 0) {
-                // simple alert for now as we don't have toast prop
-                // In real app, consider passing showToast from App.tsx
-                window.alert("No active nodes found! Tag nodes with :::active to sync.");
+                window.alert("No active nodes found! Tag nodes with :::active or :::active_agent to sync.");
+                setIsSyncing(false);
                 return;
             }
             
-            const tasks = activeNodes.map(node => ({
-                id: node.id,
-                title: node.text,
-                description: `Generated from Mermaid Plan: ${currentDiagram.name}`,
-                status: 'todo',
-                phase: 'Architecture',
-                tag: 'Mermaid',
-                priority: '3'
-            }));
+            // 1. Fetch current spec
+            const currentSpec = await invoke<any>('get_project_spec');
+            
+            // 2. Generate Markdown
+            const planMarkdown = activeNodes.map(node => {
+                const assigneeStr = node.assignee ? ` @${node.assignee}` : '';
+                return `- ${node.text}${assigneeStr}`;
+            }).join('\n');
 
-            const count = await invoke('sync_active_tasks', { tasks });
-            window.alert(`Successfully synced ${count} new tasks to Kanban.`);
+            const newSection = `\n\n## Plan: ${currentDiagram.name}\n${planMarkdown}`;
+
+            // 3. Update Spec (Features section)
+            // Ensure we handle the SpecData structure correctly (snake_case vs camelCase mapping if any)
+            // The backend update_project_spec expects the struct as defined in Rust.
+            const updatedSpec = {
+                id: 'default',
+                name: currentSpec?.name || '',
+                overview: currentSpec?.overview || '',
+                tech_stack: currentSpec?.tech_stack || currentSpec?.techStack || '',
+                data_structure: currentSpec?.data_structure || '',
+                features: (currentSpec?.features || '') + newSection, // Append
+                design: currentSpec?.design || '',
+                rules: currentSpec?.rules || ''
+            };
+
+            await invoke('update_project_spec', { spec: updatedSpec });
+
+            window.alert(`Successfully appended ${activeNodes.length} items to Project Specs (Objectives).\nPlease go into the Spec Map to review and turn them into real tasks.`);
         } catch (e: any) {
             console.error("Sync failed:", e);
-            window.alert(`Failed to sync plan: ${e.message || e}`);
+            window.alert(`Failed to update specs: ${e.message || e}`);
         } finally {
             setIsSyncing(false);
         }
@@ -198,6 +227,48 @@ export default function Planner() {
     }, [currentDiagram.code, isPopupOpen]);
 
     // 開啟獨立視窗
+    // 新增圖表
+    const addDiagram = () => {
+        const newDiagram: DiagramData = {
+            id: `flow-${Date.now()}`,
+            name: `新圖表 ${diagrams.length + 1}`,
+            type: 'flowchart',
+            code: `graph TD
+    A["開始"] --> B{"判斷點"}
+    B -- "是" --> C["執行"]:::active
+    B -- "否" --> D["結束"]`
+        };
+        setDiagrams(prev => [...prev, newDiagram]);
+        setActiveTabIndex(diagrams.length);
+        localStorage.setItem('taskrails_planner_diagrams', JSON.stringify([...diagrams, newDiagram]));
+    };
+
+    // 刪除當前圖表
+    const deleteDiagram = () => {
+        if (!confirm(`確定要刪除「${currentDiagram.name}」嗎？`)) return;
+        
+        if (diagrams.length <= 1) {
+            // 刪除最後一個圖表時，重置為預設
+            setDiagrams(DEFAULT_DIAGRAMS);
+            setActiveTabIndex(0);
+            localStorage.removeItem('taskrails_planner_diagrams');
+            return;
+        }
+        
+        const newDiagrams = diagrams.filter((_, i) => i !== activeTabIndex);
+        setDiagrams(newDiagrams);
+        setActiveTabIndex(Math.max(0, activeTabIndex - 1));
+        localStorage.setItem('taskrails_planner_diagrams', JSON.stringify(newDiagrams));
+    };
+
+    // 重置所有圖表
+    const resetDiagrams = () => {
+        if (!confirm("確定要重置所有圖表嗎？這將清除所有自訂圖表。")) return;
+        setDiagrams(DEFAULT_DIAGRAMS);
+        setActiveTabIndex(0);
+        localStorage.removeItem('taskrails_planner_diagrams');
+    };
+
     const openPopupWindow = () => {
         setIsPopupOpen(true);
     };
@@ -235,6 +306,30 @@ export default function Planner() {
                     </p>
                 </div>
                 <div className="flex gap-2">
+                    {/* 新增圖表 */}
+                    <button 
+                        onClick={addDiagram}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-lg border border-green-500/20 text-[10px] font-bold uppercase transition-colors"
+                        title="新增圖表"
+                    >
+                        <Plus size={14} /> 新增
+                    </button>
+                    {/* 刪除當前圖表 */}
+                    <button 
+                        onClick={deleteDiagram}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/20 text-[10px] font-bold uppercase transition-colors"
+                        title="刪除當前圖表"
+                    >
+                        <Trash2 size={14} /> 刪除
+                    </button>
+                    {/* 重置 */}
+                    <button 
+                        onClick={resetDiagrams}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-[#16161A] hover:bg-[#202025] text-gray-400 rounded-lg border border-white/5 text-[10px] font-bold uppercase transition-colors"
+                        title="重置所有圖表"
+                    >
+                        <RotateCcw size={14} /> 重置
+                    </button>
                     {/* 獨立視窗按鈕 */}
                     <button 
                         onClick={openPopupWindow}
@@ -253,7 +348,7 @@ export default function Planner() {
                         {isSyncing ? (
                              <>Syncing...</>
                         ) : (
-                             <><Save size={14} /> Commit Plan to Agents</>
+                             <><Save size={14} /> Commit to Specs</>
                         )}
                     </button>
                 </div>

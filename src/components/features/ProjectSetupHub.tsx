@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { 
     CheckCircle2, XCircle, AlertCircle, Sparkles,
     RotateCcw, Maximize2, FolderOpen, FilePlus, Save, ChevronDown,
-    Trash2, ExternalLink
+    Trash2, ExternalLink, Bot
 } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { AiSettingsDropdown } from './project-setup/AiSettingsDropdown';
 import { ChatInterface } from './project-setup/ChatInterface';
 import { ConfigPanel } from './project-setup/ConfigPanel';
@@ -201,6 +202,31 @@ export default function ProjectSetupHub({ onDeployComplete }: ProjectSetupHubPro
                         )}
                     </div>
                     
+                    {/* Transfer Context */}
+                    <button 
+                        onClick={async () => {
+                            try {
+                                const context = messages.map(m => `## ${m.role === 'user' ? 'User' : 'Assistant'}\n${m.content}`).join('\n\n');
+                                const fileContent = `# AI Chat Context Transfer\nTimestamp: ${new Date().toISOString()}\n\n${context}`;
+                                
+                                await invoke('update_memory', {
+                                    workspace: '.',
+                                    name: 'active_context',
+                                    content: fileContent
+                                });
+                                
+                                alert("Context transferred to @active_context.md. Your AI IDE Agent can now read this.");
+                            } catch (e) {
+                                console.error(e);
+                                alert("Failed to transfer context");
+                            }
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 rounded-lg text-[10px] font-bold text-primary hover:text-white transition-colors border border-primary/20"
+                        title="Transfer context to IDE"
+                    >
+                        <Bot size={12} /> Transfer to IDE
+                    </button>
+
                     <AiSettingsDropdown 
                         currentProvider={currentProvider}
                         setCurrentProvider={setCurrentProvider}

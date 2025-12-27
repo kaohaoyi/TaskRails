@@ -1,4 +1,5 @@
-import { LayoutDashboard, ClipboardList, Settings, FileText, Activity, BrainCircuit, Bot, Brain, Terminal, Rocket } from "lucide-react";
+import { useState, useEffect } from "react";
+import { LayoutDashboard, ClipboardList, Settings, FileText, Activity, BrainCircuit, Bot, Brain, Terminal, Rocket, FolderOpen, ChevronDown } from "lucide-react";
 import { useTranslation } from "../../hooks/useTranslation";
 import { invoke } from "@tauri-apps/api/core";
 import clsx from "clsx";
@@ -10,13 +11,108 @@ interface SidebarProps {
 
 export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
   const t = useTranslation().sidebar;
+  const [projectName, setProjectName] = useState<string>("Select Project");
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    // Initial fetch of workspace
+    if (typeof invoke !== 'undefined') {
+        invoke<string | null>('get_setting', { key: 'workspace_path' })
+            .then(path => {
+                if (path) {
+                    // Extract last folder name
+                    const name = path.split(/[\\/]/).pop() || path;
+                    setProjectName(name);
+                }
+            })
+            .catch(console.error);
+    }
+  }, []);
+
+  const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
+  
+  useEffect(() => {
+    // Click outside to close menu
+    const handleClickOutside = () => setIsProjectMenuOpen(false);
+    if (isProjectMenuOpen) window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, [isProjectMenuOpen]);
+
+  const handleOpenFolder = async () => {
+    try {
+        const path = await invoke<string | null>('pick_folder');
+        if (path) {
+            // Use switch_project to properly switch database
+            await invoke('switch_project', { workspacePath: path });
+            const name = path.split(/[\\/]/).pop() || path;
+            setProjectName(name);
+            window.location.reload(); // Reload to fetch new project data
+        }
+    } catch (err) {
+        console.error('Failed to switch project:', err);
+        alert(`無法切換專案: ${err}`);
+    }
+  };
 
   return (
     <aside className="w-64 bg-[#0A0A0C] border-r border-white/5 flex flex-col shrink-0 z-10 pt-8 shadow-[10px_0_30px_rgba(0,0,0,0.2)]">
-        <div className="px-6 mb-10 group cursor-pointer" onClick={() => onNavigate('kanban')}>
-            <div className="h-12 flex items-center justify-start overflow-hidden group-hover:scale-[1.02] transition-transform duration-500">
-                <img src="/LOGO.png" alt="TaskRails" className="h-full w-auto object-contain" />
+        <div className="px-6 mb-10 relative">
+            <div 
+                className="group cursor-pointer" 
+                onClick={() => onNavigate('kanban')}
+            >
+                <div className="h-12 flex items-center justify-start overflow-hidden group-hover:scale-[1.02] transition-transform duration-500">
+                    <img src="/LOGO.png" alt="TaskRails" className="h-full w-auto object-contain" />
+                </div>
             </div>
+            
+            {/* Visual Workspace Indicator */}
+            <div className="mt-2 flex items-center gap-2 mb-4">
+                <div className={clsx("w-1.5 h-1.5 rounded-full animate-pulse", projectName !== "Select Project" ? "bg-green-500" : "bg-gray-500")}></div>
+                <span className="text-[10px] uppercase font-mono text-gray-500 tracking-wider">
+                    {projectName !== "Select Project" ? "PROJECT ACTIVE" : "NO PROJECT"}
+                </span>
+            </div>
+
+            {/* Project Switcher Command */}
+            <button 
+                onClick={(e) => { e.stopPropagation(); setIsProjectMenuOpen(!isProjectMenuOpen); }}
+                className={clsx(
+                    "w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[#16161A] border border-white/5 hover:border-primary/50 hover:bg-white/5 transition-all group",
+                    isProjectMenuOpen ? "border-primary/50" : ""
+                )}
+            >
+                <div className="flex items-center gap-2 min-w-0">
+                    <FolderOpen size={14} className={clsx("shrink-0", projectName !== "Select Project" ? "text-primary" : "text-gray-500")} />
+                    <span className={clsx(
+                        "text-[11px] font-bold font-mono tracking-tight truncate",
+                        projectName !== "Select Project" ? "text-gray-200" : "text-gray-500"
+                    )}>
+                        {projectName}
+                    </span>
+                </div>
+                <ChevronDown size={12} className={clsx("text-gray-600 transition-transform duration-300", isProjectMenuOpen ? "rotate-180 text-primary" : "")} />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isProjectMenuOpen && (
+                <div className="absolute top-full left-6 right-6 mt-1 bg-[#1E1E24] border border-white/10 rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                    <button 
+                        onClick={() => { onNavigate('project-setup'); setIsProjectMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2.5 text-[11px] font-bold text-gray-300 hover:text-white hover:bg-primary/20 flex items-center gap-2 transition-colors border-b border-white/5"
+                    >
+                        <Rocket size={12} className="text-primary" />
+                        Init New Project
+                    </button>
+                    <button 
+                        onClick={() => { handleOpenFolder(); setIsProjectMenuOpen(false); }}
+                        className="w-full text-left px-3 py-2.5 text-[11px] font-bold text-gray-300 hover:text-white hover:bg-white/5 flex items-center gap-2 transition-colors"
+                    >
+                        <FolderOpen size={12} className="text-blue-400" />
+                        Open Existing...
+                    </button>
+                </div>
+            )}
         </div>
 
       {/* Navigation */}
@@ -83,6 +179,13 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
            
            <div className="space-y-1">
                <NavItem active={currentView === 'engineering'} icon={Terminal} label="工程中心" onClick={() => onNavigate('engineering')} />
+               <NavItem 
+                   active={currentView === 'ai-ide-control'} 
+                   icon={Bot} 
+                   label="AI IDE 控制台" 
+                   onClick={() => onNavigate('ai-ide-control')} 
+                   badge="NEW"
+               />
                <NavItem active={currentView === 'ops'} icon={Activity} label="運維中心" onClick={() => onNavigate('ops')} />
            </div>
         </div>

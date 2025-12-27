@@ -1,25 +1,26 @@
 use rusqlite::{Connection, Result};
+use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::Manager;
 
 pub struct DbState {
     pub conn: Mutex<Connection>,
+    pub current_workspace: Mutex<Option<String>>,
 }
 
+/// Initialize the global app database (for settings only)
 pub fn init(app_handle: &tauri::AppHandle) -> Result<DbState> {
     let app_dir = app_handle
         .path()
         .app_data_dir()
         .expect("failed to get app data dir");
     std::fs::create_dir_all(&app_dir).expect("failed to create app data dir");
-    let db_path = app_dir.join("taskrails.db");
+    let db_path = app_dir.join("taskrails_global.db");
 
-    let conn = Connection::open(db_path)?;
-
-    // Enable foreign keys
+    let conn = Connection::open(&db_path)?;
     conn.execute("PRAGMA foreign_keys = ON;", [])?;
 
-    // Create Tables
+    // Only settings table in global DB
     conn.execute(
         "CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
@@ -28,7 +29,41 @@ pub fn init(app_handle: &tauri::AppHandle) -> Result<DbState> {
         [],
     )?;
 
-    // Tasks table with full schema
+    // Insert default roles schema (will be copied to project db)
+    create_project_tables(&conn)?;
+
+    Ok(DbState {
+        conn: Mutex::new(conn),
+        current_workspace: Mutex::new(None),
+    })
+}
+
+/// Initialize or open a project-scoped database
+pub fn init_project_db(workspace_path: &str) -> Result<Connection> {
+    let taskrails_dir = PathBuf::from(workspace_path).join(".taskrails");
+    std::fs::create_dir_all(&taskrails_dir).ok();
+
+    let db_path = taskrails_dir.join("project.db");
+    let conn = Connection::open(&db_path)?;
+
+    conn.execute("PRAGMA foreign_keys = ON;", [])?;
+    create_project_tables(&conn)?;
+
+    Ok(conn)
+}
+
+/// Create all project-specific tables
+fn create_project_tables(conn: &Connection) -> Result<()> {
+    // Settings table (for project-specific settings)
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )",
+        [],
+    )?;
+
+    // Tasks table
     conn.execute(
         "CREATE TABLE IF NOT EXISTS tasks (
             id TEXT PRIMARY KEY,
@@ -46,7 +81,7 @@ pub fn init(app_handle: &tauri::AppHandle) -> Result<DbState> {
         [],
     )?;
 
-    // Roles table for custom AI agents and collaborators
+    // Roles table
     conn.execute(
         "CREATE TABLE IF NOT EXISTS roles (
             id TEXT PRIMARY KEY,
@@ -71,7 +106,7 @@ pub fn init(app_handle: &tauri::AppHandle) -> Result<DbState> {
         [],
     )?;
 
-    // System activity logs for Engineering History
+    // System activity
     conn.execute(
         "CREATE TABLE IF NOT EXISTS system_activity (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,7 +118,7 @@ pub fn init(app_handle: &tauri::AppHandle) -> Result<DbState> {
         [],
     )?;
 
-    // Project Specification table for automated planning
+    // Project spec
     conn.execute(
         "CREATE TABLE IF NOT EXISTS project_spec (
             id TEXT PRIMARY KEY,
@@ -99,15 +134,15 @@ pub fn init(app_handle: &tauri::AppHandle) -> Result<DbState> {
         [],
     )?;
 
-    // Experience Library Table
+    // Experiences
     conn.execute(
         "CREATE TABLE IF NOT EXISTS experiences (
             id TEXT PRIMARY KEY,
             pattern_hash TEXT,
             content TEXT NOT NULL,
             solution TEXT,
-            tags TEXT, -- JSON array of tags
-            status TEXT DEFAULT 'pending', -- pending, verified, rejected
+            tags TEXT,
+            status TEXT DEFAULT 'pending',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )",
         [],
@@ -145,21 +180,18 @@ pub fn init(app_handle: &tauri::AppHandle) -> Result<DbState> {
         )?;
     }
 
-    // Insert sample tasks if not exist
-    /*
-    let sample_tasks = vec![
-        ...
-    ];
+    Ok(())
+}
 
-    for (id, title, description, status, phase, priority, tag, assignee) in sample_tasks {
-        conn.execute(
-            "INSERT OR IGNORE INTO tasks (id, title, description, status, phase, priority, tag, assignee) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            rusqlite::params![id, title, description, status, phase, priority, tag, assignee],
-        )?;
-    }
-    */
+/// Switch to a different project's database
+pub fn switch_project(db_state: &DbState, workspace_path: &str) -> Result<()> {
+    let new_conn = init_project_db(workspace_path)?;
 
-    Ok(DbState {
-        conn: Mutex::new(conn),
-    })
+    let mut conn_guard = db_state.conn.lock().unwrap();
+    *conn_guard = new_conn;
+
+    let mut ws_guard = db_state.current_workspace.lock().unwrap();
+    *ws_guard = Some(workspace_path.to_string());
+
+    Ok(())
 }

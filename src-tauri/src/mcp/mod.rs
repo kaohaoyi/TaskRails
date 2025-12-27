@@ -31,14 +31,23 @@ pub struct JsonRpcError {
     pub data: Option<serde_json::Value>,
 }
 
-pub async fn handle_mcp_request(req: JsonRpcRequest, handle: &tauri::AppHandle) -> JsonRpcResponse {
+pub async fn handle_mcp_request(
+    req: JsonRpcRequest,
+    handle: &tauri::AppHandle,
+) -> Option<JsonRpcResponse> {
+    // If it's a notification (no id), we generally don't return a response,
+    // unless logic dictates we must send a separate notification back (not implemented here).
+    // However, for "request" methods, we MUST return a response.
+
     match req.method.as_str() {
-        "initialize" => JsonRpcResponse {
+        "initialize" => Some(JsonRpcResponse {
             jsonrpc: "2.0".to_string(),
             result: Some(json!({
                 "protocolVersion": "2024-11-05",
                 "capabilities": {
-                    "tools": {},
+                    "tools": {
+                        "listChanged": true
+                    },
                     "resources": {},
                     "prompts": {}
                 },
@@ -49,8 +58,18 @@ pub async fn handle_mcp_request(req: JsonRpcRequest, handle: &tauri::AppHandle) 
             })),
             error: None,
             id: req.id,
-        },
-        "listTools" | "tools/list" => JsonRpcResponse {
+        }),
+        "notifications/initialized" => {
+            // Client confirming initialization. No response needed.
+            None
+        }
+        "ping" => Some(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            result: Some(json!({})),
+            error: None,
+            id: req.id,
+        }),
+        "tools/list" | "listTools" => Some(JsonRpcResponse {
             jsonrpc: "2.0".to_string(),
             result: Some(json!({
                 "tools": [
@@ -79,7 +98,7 @@ pub async fn handle_mcp_request(req: JsonRpcRequest, handle: &tauri::AppHandle) 
             })),
             error: None,
             id: req.id,
-        },
+        }),
         "callTool" | "tools/call" => {
             if let Some(params) = req.params {
                 let tool_name = params
@@ -96,7 +115,7 @@ pub async fn handle_mcp_request(req: JsonRpcRequest, handle: &tauri::AppHandle) 
                         let db_state = handle.state::<crate::db::DbState>();
                         let tasks = crate::commands::get_tasks(db_state).unwrap_or_default();
 
-                        JsonRpcResponse {
+                        Some(JsonRpcResponse {
                             jsonrpc: "2.0".to_string(),
                             result: Some(json!({
                                 "content": [
@@ -108,9 +127,9 @@ pub async fn handle_mcp_request(req: JsonRpcRequest, handle: &tauri::AppHandle) 
                             })),
                             error: None,
                             id: req.id,
-                        }
+                        })
                     }
-                    "update_mission" => JsonRpcResponse {
+                    "update_mission" => Some(JsonRpcResponse {
                         jsonrpc: "2.0".to_string(),
                         result: Some(json!({
                             "content": [
@@ -122,8 +141,8 @@ pub async fn handle_mcp_request(req: JsonRpcRequest, handle: &tauri::AppHandle) 
                         })),
                         error: None,
                         id: req.id,
-                    },
-                    _ => JsonRpcResponse {
+                    }),
+                    _ => Some(JsonRpcResponse {
                         jsonrpc: "2.0".to_string(),
                         result: None,
                         error: Some(JsonRpcError {
@@ -132,10 +151,10 @@ pub async fn handle_mcp_request(req: JsonRpcRequest, handle: &tauri::AppHandle) 
                             data: None,
                         }),
                         id: req.id,
-                    },
+                    }),
                 }
             } else {
-                JsonRpcResponse {
+                Some(JsonRpcResponse {
                     jsonrpc: "2.0".to_string(),
                     result: None,
                     error: Some(JsonRpcError {
@@ -144,18 +163,25 @@ pub async fn handle_mcp_request(req: JsonRpcRequest, handle: &tauri::AppHandle) 
                         data: None,
                     }),
                     id: req.id,
-                }
+                })
             }
         }
-        _ => JsonRpcResponse {
-            jsonrpc: "2.0".to_string(),
-            result: None,
-            error: Some(JsonRpcError {
-                code: -32601,
-                message: format!("Method not found: {}", req.method),
-                data: None,
-            }),
-            id: req.id,
-        },
+        _ => {
+            // For unknown notifications, just ignore
+            if req.id.is_none() {
+                None
+            } else {
+                Some(JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    result: None,
+                    error: Some(JsonRpcError {
+                        code: -32601,
+                        message: format!("Method not found: {}", req.method),
+                        data: None,
+                    }),
+                    id: req.id,
+                })
+            }
+        }
     }
 }

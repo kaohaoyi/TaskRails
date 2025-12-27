@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Send, Trash2, Layout, Code, Database, ListChecks, Palette, ShieldCheck } from 'lucide-react';
+import { Sparkles, Send, Trash2, Layout, Code, Database, ListChecks, Palette, ShieldCheck, Download } from 'lucide-react';
 import { useTranslation } from '../../hooks/useTranslation';
 import { invoke } from '@tauri-apps/api/core';
 import clsx from 'clsx';
@@ -242,11 +242,31 @@ export default function SpecPage({ onInjectTasks, onShowToast }: SpecPageProps) 
                         >
                             <Send size={16} /> DEPLOY_TO_MISSION_BOARD
                         </button>
+                    </div>
+                     
+                    {/* Utility Actions */}
+                    <div className="flex gap-4">
+                        <button 
+                            onClick={async () => {
+                                const content = `# ${spec.name}\n\n## Overview\n${spec.overview}\n\n## Tech Stack\n${spec.techStack}\n\n## Data Structure\n${spec.data_structure}\n\n## Objectives\n${spec.features}\n\n## Design\n${spec.design}\n\n## Rules\n${spec.rules}`;
+                                try {
+                                    await invoke('save_md_file', { content, filename: `${spec.name.replace(/\s+/g, '_')}_Specs.md` });
+                                } catch (e) {
+                                    console.error(e);
+                                    onShowToast?.('Export failed', 'error');
+                                }
+                            }}
+                            className="flex-1 py-3 bg-[#16161A] hover:bg-white/5 border border-white/5 rounded-xl text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center justify-center gap-2 hover:text-white transition-all"
+                        >
+                            <Download size={14} /> EXPORT_MD
+                        </button>
+
                         <button 
                             onClick={resetSpec}
-                            className="w-14 h-14 flex items-center justify-center bg-red-500/5 hover:bg-red-500/10 text-red-500/40 hover:text-red-500 border border-red-500/10 rounded-2xl transition-all"
+                            className="w-14 h-12 flex items-center justify-center bg-red-500/5 hover:bg-red-500/10 text-red-500/40 hover:text-red-500 border border-red-500/10 rounded-xl transition-all"
+                            title="Clear Specs (Create New)"
                         >
-                            <Trash2 size={20} />
+                            <Trash2 size={16} />
                         </button>
                     </div>
                 </div>
