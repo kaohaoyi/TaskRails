@@ -1,5 +1,8 @@
 # TaskRails 使用手冊 (User Manual)
 
+> **版本**: v1.1
+> **適用版本**: TaskRails v1.1+
+
 歡迎使用 **TaskRails**。本手冊將引導您如何利用這個原生桌面協作器來管理您的 AI 輔助開發流程。
 
 ---

@@ -1,0 +1,11 @@
+graph TD
+    classDef active fill:#ff9999,stroke:#333,stroke-width:2px;
+    classDef done fill:#99ff99,stroke:#333,stroke-width:1px;
+
+    Init[專案初始化]:::done --> Specs[需求分析]:::done
+    Specs --> Arch[架構設計]:::done
+    
+    subgraph Core_Features
+        Arch --> DB[資料庫設計]:::active
+        DB --> API[API 開發]:::pending
+    end

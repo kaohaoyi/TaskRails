@@ -1,4 +1,4 @@
-import { Bug, GitCommit, Play, Hammer, Terminal, Code, Clock } from 'lucide-react';
+import { Bug, Play, Hammer, Terminal, Code, Clock, History as HistoryIcon } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { useTranslation } from '../../hooks/useTranslation';
 import clsx from 'clsx';
@@ -15,21 +15,18 @@ interface ActivityRecord {
 }
 
 interface EngineeringPageProps {
-    type: 'issues' | 'commits' | 'history';
     tasks?: TaskData[];
     onShowToast?: (message: string, type: ToastType) => void;
 }
 
-export default function EngineeringPage({ type, tasks = [], onShowToast }: EngineeringPageProps) {
+export default function EngineeringPage({ tasks = [], onShowToast }: EngineeringPageProps) {
     const t = useTranslation();
     const [lastCommand, setLastCommand] = useState<string | null>(null);
     const [activities, setActivities] = useState<ActivityRecord[]>([]);
 
     useEffect(() => {
-        if (type === 'history') {
-            fetchActivities();
-        }
-    }, [type]);
+        fetchActivities();
+    }, []);
 
     const fetchActivities = async () => {
         try {
@@ -40,30 +37,12 @@ export default function EngineeringPage({ type, tasks = [], onShowToast }: Engin
         }
     };
 
-    const getTitle = () => {
-        switch(type) {
-            case 'issues': return t.sidebar.issues;
-            case 'commits': return t.sidebar.commits;
-            case 'history': return t.sidebar.history;
-            default: return t.sidebar.engineering;
-        }
-    };
-
-    const getProposal = () => {
-        switch(type) {
-            case 'issues': return t.engineering.proposal.issues;
-            case 'commits': return t.engineering.proposal.commits;
-            case 'history': return t.engineering.proposal.history;
-            default: return '';
-        }
-    };
-
     const handleIdeCommand = async (cmdType: string) => {
         try {
             await invoke('execute_ide_command', { cmdType });
             setLastCommand(cmdType);
             onShowToast?.(`${t.engineering.commandSent} ${cmdType}`, 'success');
-            if (type === 'history') fetchActivities();
+            fetchActivities();
             setTimeout(() => setLastCommand(null), 3000);
         } catch (err) {
             console.error('Failed to execute IDE command:', err);
@@ -75,93 +54,101 @@ export default function EngineeringPage({ type, tasks = [], onShowToast }: Engin
     const issueTasks = tasks.filter(task => task.tag === 'Bug');
 
     return (
-        <div className="h-full flex flex-col p-8 space-y-8 overflow-y-auto custom-scrollbar">
-            {/* IDE Control Center */}
-            <div className="bg-[#141419] border border-border-dark rounded-xl p-6 shadow-xl relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-                    <Code size={120} />
-                </div>
-                
-                <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                    <Terminal size={18} className="text-primary" />
-                    {t.engineering.ideControl}
-                </h3>
-
-                <div className="flex flex-wrap gap-4">
-                    <button 
-                        onClick={() => handleIdeCommand('DEBUG')}
-                        className="flex items-center gap-2 px-6 py-3 bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg transition-all font-mono font-bold text-sm"
-                    >
-                        <Bug size={16} />
-                        {t.engineering.debug}
-                    </button>
-                    <button 
-                        onClick={() => handleIdeCommand('BUILD')}
-                        className="flex items-center gap-2 px-6 py-3 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-lg transition-all font-mono font-bold text-sm"
-                    >
-                        <Hammer size={16} />
-                        {t.engineering.build}
-                    </button>
-                    <button 
-                        onClick={() => handleIdeCommand('RUN_APP')}
-                        className="flex items-center gap-2 px-6 py-3 bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg transition-all font-mono font-bold text-sm"
-                    >
-                        <Play size={16} />
-                        {t.engineering.runApp}
-                    </button>
-                </div>
-
-                {lastCommand && (
-                    <div className="mt-4 text-xs font-mono text-primary/70 animate-in fade-in slide-in-from-left-2 transition-all">
-                        {t.engineering.commandSent} <span className="text-white bg-white/5 px-2 py-0.5 rounded ml-1">{lastCommand}</span>
+        <div className="h-full flex flex-col p-8 space-y-8 overflow-y-auto custom-scrollbar bg-[#0A0A0C]">
+            {/* Header Section */}
+            <div className="flex items-center justify-between border-b border-white/5 pb-6">
+                <div className="flex items-center gap-3">
+                    <span className="w-2 h-10 bg-primary block rounded-full"></span>
+                    <div>
+                        <h2 className="text-3xl font-black text-white tracking-tight uppercase">
+                            Engineering Hub
+                        </h2>
+                        <p className="text-xs font-mono text-gray-500">Integrated Control & Diagnostics</p>
                     </div>
-                )}
+                </div>
+                <div className="flex gap-2">
+                     <span className="text-[10px] font-mono text-gray-400 bg-white/5 px-3 py-1 rounded border border-white/10 uppercase tracking-widest">
+                        Status: Nominal
+                     </span>
+                </div>
             </div>
 
-            {/* Module Specific Content */}
-            <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <span className="w-2 h-8 bg-primary block"></span>
-                        <h2 className="text-3xl font-bold text-white tracking-tight uppercase">
-                            {getTitle()}
-                        </h2>
+            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+                {/* LEFT: Controls & Issues (8 cols) */}
+                <div className="xl:col-span-8 space-y-8">
+                    {/* IDE Control Center */}
+                    <div className="bg-[#141419] border border-white/5 rounded-2xl p-6 shadow-2xl relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <Code size={120} />
+                        </div>
+                        
+                        <h3 className="text-sm font-black text-gray-400 mb-6 flex items-center gap-2 uppercase tracking-[0.2em]">
+                            <Terminal size={14} className="text-primary" />
+                            {t.engineering.ideControl}
+                        </h3>
+
+                        <div className="flex flex-wrap gap-4 relative z-10">
+                            <button 
+                                onClick={() => handleIdeCommand('DEBUG')}
+                                className="flex-1 min-w-[140px] flex items-center justify-center gap-2 px-6 py-4 bg-red-500/5 hover:bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl transition-all font-mono font-bold text-sm hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                < Bug size={16} />
+                                {t.engineering.debug}
+                            </button>
+                            <button 
+                                onClick={() => handleIdeCommand('BUILD')}
+                                className="flex-1 min-w-[140px] flex items-center justify-center gap-2 px-6 py-4 bg-blue-500/5 hover:bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-xl transition-all font-mono font-bold text-sm hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                <Hammer size={16} />
+                                {t.engineering.build}
+                            </button>
+                            <button 
+                                onClick={() => handleIdeCommand('RUN_APP')}
+                                className="flex-1 min-w-[140px] flex items-center justify-center gap-2 px-6 py-4 bg-green-500/5 hover:bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl transition-all font-mono font-bold text-sm hover:scale-[1.02] active:scale-[0.98]"
+                            >
+                                <Play size={16} />
+                                {t.engineering.runApp}
+                            </button>
+                        </div>
+
+                        {lastCommand && (
+                            <div className="mt-4 text-[10px] font-mono text-primary/70 animate-pulse">
+                                {`>>`} EXECUTING_{lastCommand}_...
+                            </div>
+                        )}
                     </div>
-                    <span className="text-xs font-mono text-gray-700 bg-black/40 px-3 py-1 rounded border border-white/5">TYPE: {type.toUpperCase()}</span>
-                </div>
 
-                <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg text-sm text-gray-400 leading-relaxed italic">
-                    <span className="text-primary font-bold mr-2">PROPOSAL:</span>
-                    {getProposal()}
-                </div>
-
-                {type === 'issues' && (
+                    {/* Active Issues Section */}
                     <div className="space-y-4">
+                         <h3 className="text-sm font-black text-gray-400 flex items-center gap-2 uppercase tracking-[0.2em]">
+                            <Bug size={14} className="text-red-500" />
+                            {t.sidebar.issues}
+                        </h3>
                         {issueTasks.length === 0 ? (
-                            <div className="text-center py-12 bg-black/20 rounded-lg border border-dashed border-border-dark text-gray-600">
+                            <div className="text-center py-12 bg-[#141419]/50 rounded-2xl border border-dashed border-white/5 text-gray-600 text-sm italic">
                                 {t.engineering.noIssues}
                             </div>
                         ) : (
                             <div className="grid gap-3">
                                 {issueTasks.map(task => (
-                                    <div key={task.id} className="bg-[#1A1A1F] border border-border-dark rounded-lg p-4 flex items-center justify-between hover:border-red-500/50 transition-colors group">
+                                    <div key={task.id} className="bg-[#141419] border border-white/5 rounded-xl p-4 flex items-center justify-between hover:border-red-500/30 transition-all hover:translate-x-1 group">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded bg-red-500/10 flex items-center justify-center text-red-500 border border-red-500/20">
+                                            <div className="w-10 h-10 rounded-lg bg-red-500/5 flex items-center justify-center text-red-500 border border-red-500/10">
                                                 <Bug size={20} />
                                             </div>
                                             <div>
-                                                <div className="text-xs font-mono text-gray-500 mb-1">{task.id} · {task.phase}</div>
-                                                <div className="text-white font-medium">{task.title}</div>
+                                                <div className="text-[10px] font-mono text-gray-500 mb-1">{task.id} · {task.phase}</div>
+                                                <div className="text-white font-bold text-sm">{task.title}</div>
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-6">
                                             <div className="text-right">
-                                                <div className="text-[10px] text-gray-500 uppercase font-bold mb-1">Priority</div>
-                                                <span className="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 rounded-full border border-red-500/20">P{task.priority}</span>
+                                                <div className="text-[9px] text-gray-600 uppercase font-black mb-1">Priority</div>
+                                                <span className="text-[10px] px-2 py-0.5 bg-red-500/10 text-red-400 rounded border border-red-500/10 font-bold tracking-tighter">P{task.priority || 'N/A'}</span>
                                             </div>
                                             <div className="text-right min-w-[80px]">
-                                                <div className="text-[10px] text-gray-500 uppercase font-bold mb-1">Status</div>
-                                                <span className="text-xs text-gray-400 uppercase">{task.status}</span>
+                                                <div className="text-[9px] text-gray-600 uppercase font-black mb-1">Status</div>
+                                                <span className="text-[10px] text-white/50 uppercase font-mono">{task.status}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -169,31 +156,38 @@ export default function EngineeringPage({ type, tasks = [], onShowToast }: Engin
                             </div>
                         )}
                     </div>
-                )}
+                </div>
 
-                {type === 'history' && (
-                    <div className="bg-[#1A1A1F] border border-border-dark rounded-lg overflow-hidden">
-                        <div className="max-h-[600px] overflow-y-auto custom-scrollbar">
+                {/* RIGHT: Activity History (4 cols) */}
+                <div className="xl:col-span-4 space-y-4">
+                    <h3 className="text-sm font-black text-gray-400 flex items-center gap-2 uppercase tracking-[0.2em]">
+                        <HistoryIcon size={14} className="text-blue-500" />
+                        {t.sidebar.history}
+                    </h3>
+                    <div className="bg-[#141419] border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
+                        <div className="max-h-[700px] overflow-y-auto custom-scrollbar">
                             {activities.length === 0 ? (
-                                <div className="text-center py-12 text-gray-600">
+                                <div className="text-center py-12 text-gray-600 text-sm italic">
                                     {t.engineering.noHistory}
                                 </div>
                             ) : (
-                                <div className="divide-y divide-border-dark/50">
+                                <div className="divide-y divide-white/5">
                                     {activities.map(log => (
-                                        <div key={log.id} className="p-4 hover:bg-white/5 transition-colors flex items-start gap-4">
+                                        <div key={log.id} className="p-4 hover:bg-white/2 transition-colors flex items-start gap-4">
                                             <div className={clsx(
-                                                "p-2 rounded mt-0.5",
-                                                log.event_type === 'IDE_CONTROL' ? "bg-primary/10 text-primary" : "bg-blue-500/10 text-blue-400"
+                                                "p-2 rounded-lg mt-0.5 border",
+                                                log.event_type === 'IDE_CONTROL' 
+                                                    ? "bg-primary/10 text-primary border-primary/20" 
+                                                    : "bg-blue-500/10 text-blue-400 border-blue-500/20"
                                             )}>
-                                                {log.event_type === 'IDE_CONTROL' ? <Terminal size={14} /> : <Clock size={14} />}
+                                                {log.event_type === 'IDE_CONTROL' ? <Terminal size={12} /> : <Clock size={12} />}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <div className="flex justify-between items-start mb-1">
-                                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{log.event_type}</span>
-                                                    <span className="text-[10px] font-mono text-gray-600">{new Date(log.timestamp).toLocaleString()}</span>
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">{log.event_type}</span>
+                                                    <span className="text-[9px] font-mono text-gray-700">{new Date(log.timestamp).toLocaleTimeString()}</span>
                                                 </div>
-                                                <p className="text-sm text-gray-300">{log.message}</p>
+                                                <p className="text-xs text-gray-400 line-clamp-2 leading-relaxed">{log.message}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -201,15 +195,9 @@ export default function EngineeringPage({ type, tasks = [], onShowToast }: Engin
                             )}
                         </div>
                     </div>
-                )}
-
-                {type === 'commits' && (
-                    <div className="flex flex-col items-center justify-center py-20 opacity-30">
-                        <GitCommit size={48} className="mb-4 text-blue-500" />
-                        <p className="text-gray-500 text-sm">{t.engineering.commitsDeveloping}</p>
-                    </div>
-                )}
+                </div>
             </div>
         </div>
     );
 }
+

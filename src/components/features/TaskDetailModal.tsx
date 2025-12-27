@@ -26,7 +26,7 @@ interface TaskDetailModalProps {
     onClose: () => void;
     task: TaskData | null;
     onSave: (updatedTask: TaskData) => void;
-    onDelete: (taskId: string) => void;
+    onDelete?: (taskId: string) => void; // 可選 - 刪除功能已停用
     onRework?: (originalTask: TaskData, newContent: TaskData) => void;
     availableRoles?: AgentRole[];
 }
@@ -50,7 +50,7 @@ export default function TaskDetailModal({ isOpen, onClose, task, onSave, onDelet
     };
 
     const handleDelete = () => {
-        if (confirm('Are you sure you want to delete this task?')) {
+        if (onDelete && confirm('確定要刪除此任務嗎？')) {
             onDelete(editedTask.id);
             onClose();
         }
@@ -279,14 +279,16 @@ export default function TaskDetailModal({ isOpen, onClose, task, onSave, onDelet
                                         onClick={onClose}
                                         className="bg-white/5 hover:bg-white/10 text-gray-400 h-11 rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
                                     >
-                                        DISCARD
+                                        取消
                                     </button>
-                                    <button 
-                                        onClick={handleDelete}
-                                        className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 h-11 rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
-                                    >
-                                        TERMINATE
-                                    </button>
+                                    {onDelete && (
+                                        <button 
+                                            onClick={handleDelete}
+                                            className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 h-11 rounded-xl font-bold text-xs uppercase tracking-widest transition-all"
+                                        >
+                                            刪除任務
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>

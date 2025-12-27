@@ -130,21 +130,62 @@ pub fn get_tasks(db_state: State<'_, DbState>) -> Result<Vec<TaskData>, String> 
 #[tauri::command]
 pub fn create_task(db_state: State<'_, DbState>, task: TaskData) -> Result<(), String> {
     let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
-    conn.execute(
-        "INSERT INTO tasks (id, title, description, status, phase, priority, tag, assignee, is_reworked) 
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-        rusqlite::params![
-            task.id,
-            task.title,
-            task.description,
-            task.status,
-            task.phase.unwrap_or_else(|| "PHASE 1".to_string()),
-            task.priority.unwrap_or_else(|| "3".to_string()),
-            task.tag,
-            task.assignee,
-            task.is_reworked.map(|v| if v { 1 } else { 0 }).unwrap_or(0),
-        ],
-    ).map_err(|e| e.to_string())?;
+
+    // 先檢查任務是否已存在
+    let existing: Option<(String, Option<String>, String)> = conn
+        .query_row(
+            "SELECT title, description, status FROM tasks WHERE id = ?1",
+            [&task.id],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+        )
+        .ok();
+
+    if let Some((existing_title, existing_desc, existing_status)) = existing {
+        // 任務已存在，比較內容是否相同
+        let new_desc = task.description.clone().unwrap_or_default();
+        let old_desc = existing_desc.unwrap_or_default();
+
+        if existing_title == task.title && old_desc == new_desc && existing_status == task.status {
+            // 內容相同，跳過更新
+            return Ok(());
+        }
+
+        // 內容不同，更新任務
+        conn.execute(
+            "UPDATE tasks SET title = ?1, description = ?2, status = ?3, phase = ?4, 
+             priority = ?5, tag = ?6, assignee = ?7, is_reworked = ?8, updated_at = CURRENT_TIMESTAMP 
+             WHERE id = ?9",
+            rusqlite::params![
+                task.title,
+                task.description,
+                task.status,
+                task.phase.unwrap_or_else(|| "PHASE 1".to_string()),
+                task.priority.unwrap_or_else(|| "3".to_string()),
+                task.tag,
+                task.assignee,
+                task.is_reworked.map(|v| if v { 1 } else { 0 }).unwrap_or(0),
+                task.id,
+            ],
+        ).map_err(|e| e.to_string())?;
+    } else {
+        // 任務不存在，新增
+        conn.execute(
+            "INSERT INTO tasks (id, title, description, status, phase, priority, tag, assignee, is_reworked) 
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            rusqlite::params![
+                task.id,
+                task.title,
+                task.description,
+                task.status,
+                task.phase.unwrap_or_else(|| "PHASE 1".to_string()),
+                task.priority.unwrap_or_else(|| "3".to_string()),
+                task.tag,
+                task.assignee,
+                task.is_reworked.map(|v| if v { 1 } else { 0 }).unwrap_or(0),
+            ],
+        ).map_err(|e| e.to_string())?;
+    }
+
     Ok(())
 }
 

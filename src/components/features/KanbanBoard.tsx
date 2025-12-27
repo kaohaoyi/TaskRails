@@ -36,7 +36,7 @@ export default function KanbanBoard({
     availableRoles = [], 
     tasks, 
     onTasksChange,
-    onDeleteAllTasks 
+    onDeleteAllTasks
 }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -184,14 +184,14 @@ export default function KanbanBoard({
   };
 
   const handleDeleteTask = (taskId: string) => {
-      // Double check permission (though button shouldn't receive click if hidden)
       const task = tasks.find(t => t.id === taskId);
-      if (task && (task.status === 'doing' || task.status === 'done')) return;
+      if (task && task.status === 'doing') return; // 進行中的任務不能刪除
 
       if (confirm(fullT.common.deleteConfirm)) {
         onTasksChange(tasks.filter(t => t.id !== taskId));
       }
   };
+
 
   const handleReworkTask = (originalTask: TaskData, newContent: TaskData) => {
     console.log('[KanbanBoard] Handling Rework', { original: originalTask.id, new: newContent.title });
@@ -322,11 +322,11 @@ export default function KanbanBoard({
                 <span className="hidden md:inline">{fullT.common.exportMd}</span>
             </button>
 
-            {tasks.length > 0 && (
+            {tasks.length > 0 && onDeleteAllTasks && (
                 <button 
                     onClick={() => {
                         if (window.confirm(fullT.common.deleteAllConfirm)) {
-                            onDeleteAllTasks?.();
+                            onDeleteAllTasks();
                         }
                     }}
                     className="text-red-500/70 hover:text-red-500 px-3 py-2 text-xs font-medium border border-red-500/20 rounded-md hover:bg-red-500/5 transition-colors flex items-center gap-2"
@@ -392,7 +392,6 @@ export default function KanbanBoard({
                 onDeleteTask={handleDeleteTask}
                 canAdd={false}
                 isReadOnly={false} 
-                noDelete={true} 
               />
               
               <DragOverlay>
@@ -486,7 +485,7 @@ function Column({ id, title, count, tasks, isActive, onTaskClick, onAddTask, onD
 interface TaskCardProps {
     task: Task;
     onClick?: () => void;
-    onDelete?: (e: React.MouseEvent) => void;
+    onDelete?: () => void;
     disabled?: boolean;
 }
 
@@ -614,12 +613,13 @@ function TaskCard({ task, onClick, onDelete, disabled }: TaskCardProps) {
                     </div>
                 </div>
 
-                {/* Delete Button (Overlayed on hover for power users) */}
+                {/* Delete Button */}
                 {onDelete && (
                     <button 
                         onPointerDown={(e) => e.stopPropagation()}
-                        onClick={(e) => { e.stopPropagation(); onDelete(e); }}
-                        className="absolute bottom-2 right-2 p-1.5 opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all z-20"
+                        onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                        className="absolute bottom-2 right-2 p-1.5 opacity-50 hover:opacity-100 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all z-20"
+                        title="刪除任務"
                     >
                         <Trash2 size={12} />
                     </button>

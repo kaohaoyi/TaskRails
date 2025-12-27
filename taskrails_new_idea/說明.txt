@@ -1,0 +1,21 @@
+1. 核心交接文件：技術規格書
+這份文件定義了系統的「靈魂」與「骨架」，供架構師與資深工程師閱讀。
+Taskrails Project Handover
+12月26日 19:54
+
+開く
+
+2. 核心程式碼包
+這是整合後的程式碼，請團隊建立一個專案資料夾並放入這些檔案。
+
+後端引擎 (taskrails_engine.py)
+整合了 Mermaid 解析、上下文組裝與 Prompt 優化邏輯。
+
+前端介面 (taskrails_gui.py)
+包含對話視窗、Prompt 預覽區以及模擬的雲端日誌回傳功能。
+
+範例數據 (project_flow.mmd)
+3. 團隊快速上手指南
+這份文件供開發人員閱讀，確保環境配置正確。
+Developer Onboarding
+12月26日 19:54

@@ -1,4 +1,4 @@
-import { LayoutDashboard, ClipboardList, Settings, History, Bug, GitCommit, FileText, BookOpen, Activity, BrainCircuit, Bot, Brain } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Settings, FileText, Activity, BrainCircuit, Bot, Brain, Terminal, Rocket } from "lucide-react";
 import { useTranslation } from "../../hooks/useTranslation";
 import { invoke } from "@tauri-apps/api/core";
 import clsx from "clsx";
@@ -22,73 +22,68 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 space-y-6 custom-scrollbar">
         
-        {/* Orchestration Phase */}
+        {/* Execution - Primary Workflow */}
         <div>
            <div className="px-3 mb-3 flex items-center justify-between">
-              <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">Orchestration</span>
-              <span className="w-1 h-1 bg-blue-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]"></span>
+              <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">Execution</span>
+              <span className="w-1 h-1 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]"></span>
            </div>
            
             <div className="space-y-1">
-                    <NavItem 
-                        icon={BrainCircuit} 
-                        label="Knowledge" 
-                        active={currentView === 'knowledge'} 
-                        onClick={() => onNavigate('knowledge')} 
-                    />
-                    <NavItem 
-                        icon={Bot} 
-                        label="Agent Lab" 
-                        active={currentView === 'agent-lab'} 
-                        onClick={() => onNavigate('agent-lab')}
-                        badge="V1.0"
-                    />
-                <NavItem active={currentView === 'planner'} icon={LayoutDashboard} label="Planner" onClick={() => onNavigate('planner')} />
-                <NavItem 
-                    icon={Brain} 
-                    label="Memory Bank" 
-                    active={currentView === 'memory-bank'} 
-                    onClick={() => onNavigate('memory-bank')}
-                    badge="V1.1"
-                />
-                <NavItem active={currentView === 'specs'} icon={FileText} label={t.specs} onClick={() => onNavigate('specs')} />
+                <NavItem active={currentView === 'kanban'} icon={ClipboardList} label="任務看板" onClick={() => onNavigate('kanban')} />
+                <NavItem active={currentView === 'project-setup'} icon={Rocket} label="專案設定中心" onClick={() => onNavigate('project-setup')} badge="NEW" />
             </div>
         </div>
 
-        {/* Execution Phase */}
+        {/* Planning - Design & Setup */}
         <div>
-           <div className="px-3 mb-3">
-              <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">Execution</span>
+           <div className="px-3 mb-3 flex items-center justify-between">
+              <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">Planning</span>
            </div>
            
             <div className="space-y-1">
-                <NavItem active={currentView === 'kanban'} icon={ClipboardList} label={t.kanban} onClick={() => onNavigate('kanban')} />
-                <NavItem active={currentView === 'missions'} icon={BookOpen} label={t.missions} onClick={() => onNavigate('missions')} />
-                <NavItem active={false} icon={Activity} label="AI Architect" onClick={() => invoke('open_chat_window')} />
+                <NavItem active={currentView === 'specs'} icon={FileText} label="專案說明書" onClick={() => onNavigate('specs')} />
+                <NavItem active={currentView === 'planner'} icon={LayoutDashboard} label="專案規劃師" onClick={() => onNavigate('planner')} />
+                <NavItem 
+                    icon={Bot} 
+                    label="AI 代理配置" 
+                    active={currentView === 'agent-lab'} 
+                    onClick={() => onNavigate('agent-lab')}
+                />
+            </div>
+        </div>
+
+        {/* Knowledge - Memory & Experience */}
+        <div>
+           <div className="px-3 mb-3">
+              <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">Knowledge</span>
+           </div>
+           
+            <div className="space-y-1">
+                <NavItem 
+                    icon={Brain} 
+                    label="記憶庫" 
+                    active={currentView === 'memory-bank'} 
+                    onClick={() => onNavigate('memory-bank')}
+                />
+                <NavItem 
+                    icon={BrainCircuit} 
+                    label="知識庫" 
+                    active={currentView === 'knowledge'} 
+                    onClick={() => onNavigate('knowledge')} 
+                />
             </div>
         </div>
         
-        {/* Engineering Support */}
+        {/* Maintenance - Engineering & Ops */}
         <div>
            <div className="px-3 mb-3">
-              <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">{t.engineering}</span>
+              <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">Maintenance</span>
            </div>
            
            <div className="space-y-1">
-               <NavItem active={currentView === 'issues'} icon={Bug} label={t.issues} onClick={() => onNavigate('issues')} />
-               <NavItem active={currentView === 'commits'} icon={GitCommit} label={t.commits} onClick={() => onNavigate('commits')} />
-               <NavItem active={currentView === 'history'} icon={History} label={t.history} onClick={() => onNavigate('history')} />
-           </div>
-        </div>
-
-        {/* Operations & Sentinel */}
-        <div>
-           <div className="px-3 mb-3">
-              <span className="text-[10px] font-black tracking-[0.2em] text-gray-600 uppercase">Operations</span>
-           </div>
-           
-           <div className="space-y-1">
-               <NavItem active={currentView === 'ops'} icon={Activity} label="Ops Center" onClick={() => onNavigate('ops')} />
+               <NavItem active={currentView === 'engineering'} icon={Terminal} label="工程中心" onClick={() => onNavigate('engineering')} />
+               <NavItem active={currentView === 'ops'} icon={Activity} label="運維中心" onClick={() => onNavigate('ops')} />
            </div>
         </div>
       </nav>

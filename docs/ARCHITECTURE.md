@@ -1,5 +1,8 @@
 # TaskRails 系統架構與開發指南 (Architecture & Development Guide)
 
+> **版本**: v1.1
+> **適用版本**: TaskRails v1.1+
+
 本文件概述 **TaskRails** 的技術架構、目錄結構與開發流程，旨在協助新進開發者快速上手。
 
 ---

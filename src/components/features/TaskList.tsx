@@ -7,7 +7,7 @@ import TaskDetailModal from './TaskDetailModal';
 interface TaskListProps {
     tasks: Task[]; // Pass tasks from parent (already filtered)
     onUpdateTask: (task: Task) => void;
-    onDeleteTask: (id: string) => void;
+    onDeleteTask?: (id: string) => void;
     onAddTask: (status: 'todo') => void;
 }
 
@@ -85,12 +85,12 @@ export default function TaskList({ tasks, onUpdateTask, onDeleteTask, onAddTask 
                             </span>
                         </div>
                         <div className="col-span-2 text-right opacity-0 group-hover:opacity-100 transition-opacity">
-                             {task.status !== 'doing' && (
+                             {task.status !== 'doing' && onDeleteTask && (
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
                                     className="text-gray-500 hover:text-red-500 p-1"
                                 >
-                                    Delete
+                                    刪除
                                 </button>
                              )}
                         </div>
@@ -103,7 +103,7 @@ export default function TaskList({ tasks, onUpdateTask, onDeleteTask, onAddTask 
                     onClose={() => setIsModalOpen(false)}
                     task={selectedTask}
                     onSave={(updated) => { onUpdateTask(updated); setIsModalOpen(false); }}
-                    onDelete={(id) => { onDeleteTask(id); setIsModalOpen(false); }}
+                    onDelete={onDeleteTask ? (id) => { onDeleteTask(id); setIsModalOpen(false); } : undefined}
             />
         </div>
     );

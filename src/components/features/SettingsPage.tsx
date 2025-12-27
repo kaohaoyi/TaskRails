@@ -18,17 +18,29 @@ export default function SettingsPage() {
     const t = useTranslation().settings;
 
     const loadAllKeys = async () => {
-        if (typeof invoke === 'undefined') return;
         const keys: Record<string, string> = {};
-        try {
-            for (const provider of Object.keys(t.ai.providers)) {
-                const val = await invoke<string | null>('get_setting', { key: `ai_api_key_${provider}` });
-                if (val) keys[provider] = val;
+        
+        // 嘗試從 Tauri 讀取
+        if (typeof invoke !== 'undefined') {
+            try {
+                for (const provider of Object.keys(t.ai.providers)) {
+                    const val = await invoke<string | null>('get_setting', { key: `ai_api_key_${provider}` });
+                    if (val) keys[provider] = val;
+                }
+            } catch (e) {
+                console.error('Failed to load keys from Tauri:', e);
             }
-            setStoredKeys(keys);
-        } catch (e) {
-            console.error('Failed to load keys:', e);
         }
+        
+        // 從 localStorage 讀取（僙用/補充）
+        for (const provider of Object.keys(t.ai.providers)) {
+            if (!keys[provider]) {
+                const localKey = localStorage.getItem(`taskrails_api_key_${provider}`);
+                if (localKey) keys[provider] = localKey;
+            }
+        }
+        
+        setStoredKeys(keys);
     };
 
     useEffect(() => {
@@ -67,21 +79,26 @@ export default function SettingsPage() {
     }, [selectedProvider, storedKeys]);
 
     const handleSaveAiSettings = async () => {
-        if (typeof invoke === 'undefined') {
-            alert('Tauri 環境未就緒，無法儲存設定。');
-            return;
-        }
-
         try {
-            await invoke('set_setting', { key: 'ai_provider', value: selectedProvider });
-            await invoke('set_setting', { key: `ai_api_key_${selectedProvider}`, value: apiKey });
-            await invoke('set_setting', { key: 'ai_model', value: model });
-            await invoke('set_setting', { key: 'ai_endpoint', value: endpoint });
+            // 儲存到 Tauri DB
+            if (typeof invoke !== 'undefined') {
+                await invoke('set_setting', { key: 'ai_provider', value: selectedProvider });
+                await invoke('set_setting', { key: `ai_api_key_${selectedProvider}`, value: apiKey });
+                await invoke('set_setting', { key: 'ai_model', value: model });
+                await invoke('set_setting', { key: 'ai_endpoint', value: endpoint });
+            }
+            
+            // 同時儲存到 localStorage（僙用）
+            localStorage.setItem('taskrails_ai_provider', selectedProvider);
+            localStorage.setItem(`taskrails_api_key_${selectedProvider}`, apiKey);
+            localStorage.setItem('taskrails_ai_model', model);
+            if (endpoint) localStorage.setItem('taskrails_ai_endpoint', endpoint);
+            
             await loadAllKeys();
             alert(t.ai.saveSuccess);
         } catch (err) {
             console.error('Failed to save AI settings:', err);
-            alert(t.ai.saveError);
+            alert(t.ai.saveError + '\n' + String(err));
         }
     };
 

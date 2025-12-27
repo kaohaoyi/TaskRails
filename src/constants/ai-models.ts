@@ -10,3 +10,4 @@ export const PROVIDER_MODELS: Record<string, string[]> = {
     ollama: ['llama3.2', 'mistral', 'deepseek-v3', 'phi4'],
     custom: ['openai-compatible']
 };
+ 

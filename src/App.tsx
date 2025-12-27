@@ -7,7 +7,6 @@ import AirlockModal from "./components/features/AirlockModal";
 import SettingsPage from "./components/features/SettingsPage";
 import EngineeringPage from "./components/features/EngineeringPage";
 import RoleSettingsPage, { AgentRole } from "./components/features/RoleSettingsPage";
-import MissionsPage from "./components/features/MissionsPage";
 import SpecPage from "./components/features/SpecPage";
 import InstructionPage from "./components/features/InstructionPage";
 import AiChatWindow from "./components/features/AiChatWindow"; // New Import
@@ -16,6 +15,8 @@ import AgentLab from "./components/features/AgentLab"; // v2.6
 import Planner from "./components/features/Planner"; // v2.6
 import ExperienceLibrary from './components/features/ExperienceLibrary'; // v2.6
 import MemoryBankViewer from './components/features/MemoryBankViewer'; // v1.1
+import ProjectSetupHub from './components/features/ProjectSetupHub'; // v2.7
+import ProjectSetupPopup from './components/features/ProjectSetupPopup'; // v2.7 Popup
 import { useTranslation } from "./hooks/useTranslation";
 import Toast, { ToastType } from "./components/common/Toast";
 import * as dbApi from "./api/db";
@@ -30,9 +31,12 @@ interface ToastItem {
 }
 
 function App() {
-  // Check for standalone window route
+  // Check for standalone window routes
   if (window.location.pathname === '/chat') {
       return <AiChatWindow />;
+  }
+  if (window.location.pathname === '/project-setup-popup') {
+      return <ProjectSetupPopup />;
   }
 
   const t = useTranslation();
@@ -161,6 +165,8 @@ function App() {
     }
   }, [tasks]);
 
+  // 以下函數保留供未來使用
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleUpdateTask = useCallback(async (updatedTask: Task) => {
     try {
       await dbApi.updateTask(updatedTask);
@@ -170,6 +176,7 @@ function App() {
     }
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleDeleteTask = useCallback(async (taskId: string) => {
     try {
       await dbApi.deleteTask(taskId);
@@ -191,6 +198,7 @@ function App() {
   }, [showToast]);
 
   // Rework: Mark original as reworked (locked), create new task in TODO
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const handleReworkTask = useCallback(async (originalTask: Task, newContent: Task) => {
     try {
       // 1. Mark original task as reworked
@@ -290,10 +298,10 @@ function App() {
                     <div className="mb-6">
                         <h1 data-tauri-drag-region className="text-3xl font-bold uppercase tracking-tight text-white flex items-center gap-3 cursor-default select-none">
                             <span className="w-2 h-8 bg-primary block pointer-events-none"></span>
-                            {t.kanban.title}
+                            任務看板
                         </h1>
                         <p className="text-gray-500 mt-1 text-sm pl-5">
-                            {t.kanban.subtitle}
+                            專案任務管理與進度追蹤
                         </p>
                     </div>
                 )}
@@ -316,16 +324,6 @@ function App() {
                             onDeleteAllTasks={handleDeleteAllTasks}
                         />
                     )}
-                    {currentView === 'missions' && (
-                        <MissionsPage 
-                            tasks={tasks} 
-                            onUpdateTask={handleUpdateTask} 
-                            onDeleteTask={handleDeleteTask} 
-                            onDeleteAllTasks={handleDeleteAllTasks}
-                            onRework={handleReworkTask}
-                            availableRoles={allRoles}
-                        />
-                    )}
                     {currentView === 'settings' && <SettingsPage />}
                     {currentView === 'ops' && <OpsDashboard />}
                     {currentView === 'roleSettings' && (
@@ -339,9 +337,8 @@ function App() {
                     {currentView === 'knowledge' && <ExperienceLibrary />}
                     {currentView === 'memory-bank' && <MemoryBankViewer />}
                     {currentView === 'planner' && <Planner />}
-                    {currentView === 'issues' && <EngineeringPage type="issues" tasks={tasks} onShowToast={showToast} />}
-                    {currentView === 'commits' && <EngineeringPage type="commits" tasks={tasks} onShowToast={showToast} />}
-                    {currentView === 'history' && <EngineeringPage type="history" tasks={tasks} onShowToast={showToast} />}
+                    {currentView === 'project-setup' && <ProjectSetupHub />}
+                    {currentView === 'engineering' && <EngineeringPage tasks={tasks} onShowToast={showToast} />}
                 </div>
             </div>
 
