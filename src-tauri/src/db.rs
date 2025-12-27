@@ -8,7 +8,7 @@ pub struct DbState {
     pub current_workspace: Mutex<Option<String>>,
 }
 
-/// Initialize the global app database (for settings only)
+/// Initialize the global app database and auto-load last project
 pub fn init(app_handle: &tauri::AppHandle) -> Result<DbState> {
     let app_dir = app_handle
         .path()
@@ -20,7 +20,7 @@ pub fn init(app_handle: &tauri::AppHandle) -> Result<DbState> {
     let conn = Connection::open(&db_path)?;
     conn.execute("PRAGMA foreign_keys = ON;", [])?;
 
-    // Only settings table in global DB
+    // Ensure settings table exists in global DB
     conn.execute(
         "CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
@@ -29,12 +29,32 @@ pub fn init(app_handle: &tauri::AppHandle) -> Result<DbState> {
         [],
     )?;
 
-    // Insert default roles schema (will be copied to project db)
-    create_project_tables(&conn)?;
+    // Check for last workspace_path
+    let last_ws: Option<String> = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = 'workspace_path'",
+            [],
+            |r| r.get(0),
+        )
+        .ok();
+
+    let (active_conn, active_ws) = if let Some(ws_path) = last_ws {
+        println!("[DB] Auto-loading workspace: {}", ws_path);
+        // Try to initialize project DB
+        match init_project_db(&ws_path) {
+            Ok(p_conn) => (p_conn, Some(ws_path)),
+            Err(e) => {
+                println!("[DB] Failed to auto-load workspace: {}", e);
+                (conn, None)
+            }
+        }
+    } else {
+        (conn, None)
+    };
 
     Ok(DbState {
-        conn: Mutex::new(conn),
-        current_workspace: Mutex::new(None),
+        conn: Mutex::new(active_conn),
+        current_workspace: Mutex::new(active_ws),
     })
 }
 
@@ -144,6 +164,18 @@ fn create_project_tables(conn: &Connection) -> Result<()> {
             tags TEXT,
             status TEXT DEFAULT 'pending',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )",
+        [],
+    )?;
+
+    // Chat History
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS chat_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )",
         [],
     )?;

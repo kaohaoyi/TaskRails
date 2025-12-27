@@ -58,6 +58,7 @@ bollard = "0.18"
 uuid = { version = "1", features = ["v4", "serde"] } # Ensure UUID generation
 rand = "0.8" # For random port/token generation
 regex = "1" # For Sentinel Linter parsing
+walkdir = "2" # For project structure scanning
 
 [dev-dependencies]
 rusqlite = { version = "0.33", features = ["bundled", "time"] }

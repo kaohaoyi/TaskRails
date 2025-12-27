@@ -170,3 +170,13 @@ export async function deleteRole(id: string): Promise<void> {
         throw err;
     }
 }
+
+// ============ Project Spec API ============
+export async function fetchProjectSpec(): Promise<any> {
+    try {
+        return await invoke('get_project_spec');
+    } catch (err) {
+        console.error('[DB] Failed to fetch project spec:', err);
+        return null;
+    }
+}

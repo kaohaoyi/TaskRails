@@ -18,10 +18,13 @@ import MemoryBankViewer from './components/features/MemoryBankViewer'; // v1.1
 import ProjectSetupHub from './components/features/ProjectSetupHub'; // v2.7
 import ProjectSetupPopup from './components/features/ProjectSetupPopup'; // v2.7 Popup
 import AiIdeControlCenter from './components/features/AiIdeControlCenter'; // v1.1 IDE Control
+import ProjectAnalyzer from './components/features/ProjectAnalyzer'; // v1.1 Project Analysis
+import FileExplorer from './components/features/FileExplorer'; // v1.1 Files
 import { useTranslation } from "./hooks/useTranslation";
 import Toast, { ToastType } from "./components/common/Toast";
 import * as dbApi from "./api/db";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { generateProjectContext } from "./utils/mdExport";
 import { parseProjectContext } from "./utils/mdImport";
 
@@ -60,43 +63,52 @@ function App() {
   const [lastSyncHash, setLastSyncHash] = useState<string>('');
 
   // Load data from database on mount
-  useEffect(() => {
-    const loadData = async () => {
-      console.log('[App] Starting data load...');
-      try {
-        const [dbTasks, dbRoles] = await Promise.all([
-          dbApi.fetchTasks(),
-          dbApi.fetchRoles()
-        ]);
-        
-        // Attempt to read from workspace .taskrails for any updates
+  const loadData = useCallback(async () => {
+    console.log('[App] Starting data load...');
+    // Clear existing data to avoid "old data" showing up during reload
+    setTasks([]);
+    setRoles([]);
+    
+    try {
+      const [dbTasks, dbRoles] = await Promise.all([
+        dbApi.fetchTasks(),
+        dbApi.fetchRoles()
+      ]);
+      
+      setTasks(dbTasks);
+      setRoles(dbRoles);
+
+      // Attempt to read from workspace .taskrails for any updates if DB is empty
+      if (dbTasks.length === 0) {
         const workspaceContent = await invoke<string | null>('read_workspace_file');
-        
         if (workspaceContent) {
            const { tasks: wsTasks, roles: wsRoles } = parseProjectContext(workspaceContent);
-           
-           // If DB is empty but WS has data
-           if (dbTasks.length === 0 && wsTasks.length > 0) {
+           if (wsTasks.length > 0) {
              console.log('[App] DB is empty, importing from workspace .taskrails');
              setTasks(wsTasks);
              setRoles(wsRoles);
-             // Persist imported data to DB
              for (const t of wsTasks) await dbApi.createTask(t);
              for (const r of wsRoles) await dbApi.createRole(r);
-             return;
            }
         }
-
-        setTasks(dbTasks);
-        setRoles(dbRoles);
-      } catch (err) {
-        console.error('[App] Failed to load data:', err);
-        setTasks(initialTasks);
-        setRoles([]);
       }
-    };
-    loadData();
+    } catch (err) {
+      console.error('[App] Failed to load data:', err);
+    }
   }, []);
+
+  useEffect(() => {
+    loadData();
+
+    const unlisten = listen('project-switched', () => {
+      console.log('[App] Project switched event received. Refreshing global data...');
+      loadData();
+    });
+
+    return () => {
+      unlisten.then(f => f());
+    };
+  }, [loadData]);
 
   // Sync tasks & roles to workspace file whenever they change
   useEffect(() => {
@@ -355,6 +367,8 @@ function App() {
                     {currentView === 'project-setup' && <ProjectSetupHub />}
                     {currentView === 'engineering' && <EngineeringPage tasks={tasks} onShowToast={showToast} />}
                     {currentView === 'ai-ide-control' && <AiIdeControlCenter />}
+                    {currentView === 'project-analyzer' && <ProjectAnalyzer />}
+                    {currentView === 'file-explorer' && <FileExplorer />}
                 </div>
             </div>
 

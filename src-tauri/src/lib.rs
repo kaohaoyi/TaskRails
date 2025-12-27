@@ -10,6 +10,7 @@ pub mod db;
 mod git_ops;
 pub mod mcp;
 pub mod memory_bank;
+pub mod project_scanner;
 pub mod satellite;
 mod sentinel;
 mod state_machine;
@@ -135,7 +136,14 @@ pub fn run() {
             commands::sync_active_tasks,
             // Project Switching
             commands::switch_project,
-            commands::get_current_workspace
+            commands::get_current_workspace,
+            // Project Analysis
+            commands::scan_project,
+            commands::generate_project_docs,
+            // Chat History
+            commands::save_chat_message,
+            commands::get_chat_history,
+            commands::clear_chat_history
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

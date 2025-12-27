@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Bot, Send, Copy, Trash2, ExternalLink, RefreshCw, Check, Settings as SettingsIcon, Sparkles } from 'lucide-react';
+import { Bot, Send, Copy, Trash2, ExternalLink, RefreshCw, Check, Sparkles } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import clsx from 'clsx';
 
 interface ChatMessage {
@@ -9,15 +10,8 @@ interface ChatMessage {
     timestamp: number;
 }
 
-/**
- * AI IDE Control Center
- * 
- * 這個專用頁面用於與您的 AI IDE（如 Cursor、VS Code + Gemini）進行交互。
- * 主要功能：
- * 1. 與 AI 討論開發需求
- * 2. 將對話上下文轉移到 IDE Agent（寫入 @active_context.md）
- * 3. 管理與 IDE 的連接狀態
- */
+const SESSION_ID = 'aiide_control_center';
+
 export default function AiIdeControlCenter() {
     const [messages, setMessages] = useState<ChatMessage[]>([
         { 
@@ -31,7 +25,7 @@ export default function AiIdeControlCenter() {
     const [copiedId, setCopiedId] = useState<number | null>(null);
     const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected' | 'checking'>('checking');
 
-    // Check Local LLM / MCP connection on mount
+    // Check Local LLM / MCP connection and Load history on mount
     useEffect(() => {
         const checkConnection = async () => {
             try {
@@ -41,7 +35,41 @@ export default function AiIdeControlCenter() {
                 setConnectionStatus('disconnected');
             }
         };
+
+        const loadHistory = async () => {
+            try {
+                const history = await invoke<any[]>('get_chat_history', { sessionId: SESSION_ID });
+                if (history && history.length > 0) {
+                    setMessages(history.map(m => ({
+                        role: m.role as any,
+                        content: m.content,
+                        timestamp: Date.now()
+                    })));
+                } else {
+                    // Reset to default if no history
+                    setMessages([{ 
+                        role: 'assistant', 
+                        content: '歡迎使用 AI IDE 控制台！...', 
+                        timestamp: Date.now() 
+                    }]);
+                }
+            } catch (e) {
+                console.error("Failed to load chat history:", e);
+            }
+        };
+
         checkConnection();
+        loadHistory();
+
+        // Listen for internal project switching
+        const unlisten = listen('project-switched', () => {
+             console.log("[AIIDE] Project switched, reloading history...");
+             loadHistory();
+        });
+
+        return () => {
+            unlisten.then(f => f());
+        };
     }, []);
 
     const handleSend = async () => {
@@ -53,6 +81,9 @@ export default function AiIdeControlCenter() {
         setIsThinking(true);
 
         try {
+            // Save user message to DB
+            await invoke('save_chat_message', { sessionId: SESSION_ID, role: 'user', content: input });
+
             // Build context from existing messages
             let context = "";
             try {
@@ -80,9 +111,12 @@ export default function AiIdeControlCenter() {
                 context 
             });
 
+            // Save assistant message to DB
+            await invoke('save_chat_message', { sessionId: SESSION_ID, role: 'assistant', content: response });
+
             const botMsg: ChatMessage = { role: 'assistant', content: response, timestamp: Date.now() };
             setMessages(prev => [...prev, botMsg]);
-        } catch (err) {
+        } catch (err: any) {
             const errMsg: ChatMessage = { role: 'assistant', content: `錯誤：${err}`, timestamp: Date.now() };
             setMessages(prev => [...prev, errMsg]);
         } finally {
@@ -116,7 +150,11 @@ ${contextMarkdown}
                 content: fileContent
             });
 
-            alert('✅ Context transferred to @active_context.md\n\n請在您的 AI IDE 中輸入：\n"Read @active_context.md"');
+            // Auto-copy instruction to clipboard for easy pasting into Cursor
+            const instruction = 'Read @active_context.md and continue the development based on this discussion.';
+            await navigator.clipboard.writeText(instruction);
+
+            alert('✅ Context transferred to @active_context.md\n\n指令已自動複製到剪貼簿！\n請在您的 AI IDE 中直接貼上並執行即可。');
         } catch (e) {
             console.error(e);
             alert('❌ Failed to transfer context');
@@ -129,13 +167,19 @@ ${contextMarkdown}
         setTimeout(() => setCopiedId(null), 2000);
     };
 
-    const handleClearChat = () => {
+    const handleClearChat = async () => {
         if (confirm('確定要清除所有對話紀錄嗎？')) {
-            setMessages([{ 
-                role: 'assistant', 
-                content: '對話已清除。請開始新的討論。', 
-                timestamp: Date.now() 
-            }]);
+            try {
+                await invoke('clear_chat_history', { sessionId: SESSION_ID });
+                setMessages([{ 
+                    role: 'assistant', 
+                    content: '對話已清除。請開始新的討論。', 
+                    timestamp: Date.now() 
+                }]);
+            } catch (e) {
+                console.error("Failed to clear chat history:", e);
+                alert("清除失敗");
+            }
         }
     };
 

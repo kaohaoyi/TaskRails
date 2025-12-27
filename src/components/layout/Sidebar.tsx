@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { LayoutDashboard, ClipboardList, Settings, FileText, Activity, BrainCircuit, Bot, Brain, Terminal, Rocket, FolderOpen, ChevronDown } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Settings, FileText, Activity, BrainCircuit, Bot, Brain, Terminal, Rocket, FolderOpen, ChevronDown, Scan } from "lucide-react";
 import { useTranslation } from "../../hooks/useTranslation";
 import { invoke } from "@tauri-apps/api/core";
 import clsx from "clsx";
@@ -167,6 +167,19 @@ export default function Sidebar({ currentView, onNavigate }: SidebarProps) {
                     label="知識庫" 
                     active={currentView === 'knowledge'} 
                     onClick={() => onNavigate('knowledge')} 
+                />
+                <NavItem 
+                    icon={FolderOpen} 
+                    label="檔案結構" 
+                    active={currentView === 'file-explorer'} 
+                    onClick={() => onNavigate('file-explorer')} 
+                />
+                <NavItem 
+                    icon={Scan} 
+                    label="專案分析器" 
+                    active={currentView === 'project-analyzer'} 
+                    onClick={() => onNavigate('project-analyzer')}
+                    badge="NEW"
                 />
             </div>
         </div>

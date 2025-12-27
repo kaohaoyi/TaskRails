@@ -51,37 +51,24 @@ impl LocalLlmClient {
         }
     }
 
-    pub async fn refine_prompt(
+    pub async fn chat(
         &self,
-        user_input: &str,
-        context: &str,
+        system_prompt: &str,
+        user_prompt: &str,
     ) -> Result<String, Box<dyn Error>> {
-        // Try to get current model from LM Studio if default fails
         let model_to_use = self
             .get_current_model()
             .await
             .unwrap_or_else(|| self.model.clone());
 
-        let system_prompt = format!(
-            "你是一個 TaskRails 的本地架構師 (Refiner)。\n\
-            你的目標是將用戶模糊的指令轉化為專業的「工程 Prompt」，供雲端 AI 執行。\n\n\
-            [Context]\n{}\n\n\
-            [Rules]\n\
-            1. 分析用戶指令。\n\
-            2. 若指令模糊，請直接反問 (不用包在標籤裡)。\n\
-            3. 若指令清晰，請生成 <final_prompt>...</final_prompt>。\n\
-            4. <final_prompt> 內必須包含條列式的步驟、檔案路徑與具體驗收標準。\n",
-            context
-        );
-
         let messages = vec![
             ChatMessage {
                 role: "system".to_string(),
-                content: system_prompt,
+                content: system_prompt.to_string(),
             },
             ChatMessage {
                 role: "user".to_string(),
-                content: user_input.to_string(),
+                content: user_prompt.to_string(),
             },
         ];
 
@@ -102,7 +89,7 @@ impl LocalLlmClient {
         if !resp.status().is_success() {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
-            return Err(format!("LM Studio 請求失敗 ({}): {}\n\n提示：請確認 LM Studio 中已載入模型，且模型名稱為 '{}'", status, body, model_to_use).into());
+            return Err(format!("LM Studio 請求失敗 ({}): {}", status, body).into());
         }
 
         let chat_resp: ChatResponse = resp.json().await?;
@@ -112,6 +99,26 @@ impl LocalLlmClient {
         } else {
             Err("No content received".into())
         }
+    }
+
+    pub async fn refine_prompt(
+        &self,
+        user_input: &str,
+        context: &str,
+    ) -> Result<String, Box<dyn Error>> {
+        let system_prompt = format!(
+            "你是一個 TaskRails 的本地架構師 (Refiner)。\n\
+            你的目標是將用戶模糊的指令轉化為專業的「工程 Prompt」，供雲端 AI 執行。\n\n\
+            [Context]\n{}\n\n\
+            [Rules]\n\
+            1. 分析用戶指令。\n\
+            2. 若指令模糊，請直接反問 (不用包在標籤裡)。\n\
+            3. 若指令清晰，請生成 <final_prompt>...</final_prompt>。\n\
+            4. <final_prompt> 內必須包含條列式的步驟、檔案路徑與具體驗收標準。\n",
+            context
+        );
+
+        self.chat(&system_prompt, user_input).await
     }
 
     /// Try to get the first available model from LM Studio

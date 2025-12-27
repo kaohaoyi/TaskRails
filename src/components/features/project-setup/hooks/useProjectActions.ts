@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+import { listen } from '@tauri-apps/api/event';
 import { ProjectConfig, CompletenessCheck, getDefaultProjectConfig, GeneratedAgent } from '../../../../utils/projectConfig';
 import { Message, SavedProject } from '../../../../types/project-setup';
 
@@ -28,13 +29,109 @@ export function useProjectActions({
     const [isPopupOpen, setIsPopupOpen] = useState(false);
     const [editingAgentIndex, setEditingAgentIndex] = useState<number | null>(null);
 
-    // Load saved projects
+    // Load saved projects list from localStorage
     useEffect(() => {
         const saved = localStorage.getItem('taskrails_saved_projects');
         if (saved) {
             setSavedProjects(JSON.parse(saved));
         }
     }, []);
+
+    // AUTO-LOAD: Load project config from database whenever workspace changes
+    useEffect(() => {
+        const loadFromDb = async () => {
+            console.log('[useProjectActions] Loading project spec...');
+            try {
+                // 0. If workspacePath is empty, try to get it from backend
+                let activePath = workspacePath;
+                if (!activePath) {
+                    const backendWs = await invoke<string | null>('get_current_workspace');
+                    if (backendWs) {
+                        activePath = backendWs;
+                        setWorkspacePath(backendWs);
+                    }
+                }
+
+                // 1. Try Database Spec first
+                const spec = await invoke<any>('get_project_spec');
+                if (spec && spec.name) {
+                    console.log('[useProjectActions] Found spec in DB');
+                    setProjectConfig(prev => ({
+                        ...prev,
+                        projectName: spec.name || '',
+                        projectGoal: spec.overview || '',
+                        techStack: spec.tech_stack ? spec.tech_stack.split('\n') : [],
+                        dataStructure: spec.data_structure || '',
+                        features: spec.features ? spec.features.split('\n').filter((f: string) => f.trim()) : [],
+                        designSpec: spec.design || '',
+                        engineeringRules: spec.rules || ''
+                    }));
+                    return;
+                }
+
+                // 2. Fallback: Try reading from Memory Bank files if DB is empty
+                if (activePath) {
+                    console.log('[useProjectActions] DB empty, trying file fallback for', activePath);
+                    const memPath = activePath;
+                    try {
+                        const specs_file = await invoke<any>('get_memory', { workspace: memPath, name: 'specs' }).catch(() => null);
+                        const tech_file = await invoke<any>('get_memory', { workspace: memPath, name: 'tech-stack' }).catch(() => null);
+                        const arch_file = await invoke<any>('get_memory', { workspace: memPath, name: 'architecture' }).catch(() => null);
+
+                        if (specs_file || tech_file || arch_file) {
+                            const newConfig = { ...getDefaultProjectConfig() };
+                            
+                            if (specs_file) {
+                                // Simple parsing for specs.md
+                                const content = specs_file.content;
+                                const nameMatch = content.match(/# (.*) Specs/);
+                                if (nameMatch) newConfig.projectName = nameMatch[1];
+                                
+                                const goalMatch = content.match(/## Overview\n([\s\S]*?)\n##/);
+                                if (goalMatch) newConfig.projectGoal = goalMatch[1].trim();
+
+                                const featMatch = content.match(/## Features\n([\s\S]*?)\n##/);
+                                if (featMatch) newConfig.features = featMatch[1].split('\n- ').map((s: string) => s.replace(/^- /, '').trim()).filter((s: string) => s);
+                                
+                                const ruleMatch = content.match(/## Rules\n([\s\S]*)/);
+                                if (ruleMatch) newConfig.engineeringRules = ruleMatch[1].trim();
+                            }
+
+                            if (tech_file) {
+                                newConfig.techStack = tech_file.content.replace(/# Technology Stack\n\n- /, '').split('\n- ').map((s: string) => s.trim()).filter((s: string) => s);
+                            }
+
+                            if (arch_file) {
+                                const content = arch_file.content;
+                                const designMatch = content.match(/## Design\n([\s\S]*?)\n##/);
+                                if (designMatch) newConfig.designSpec = designMatch[1].trim();
+                                
+                                const dataMatch = content.match(/## Data Structure\n([\s\S]*)/);
+                                if (dataMatch) newConfig.dataStructure = dataMatch[1].trim();
+                            }
+
+                            setProjectConfig(newConfig);
+                        }
+                    } catch (fileErr) {
+                        console.warn('File recovery failed:', fileErr);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to auto-load project spec:', err);
+            }
+        };
+
+        loadFromDb();
+        
+        // Also listen for external switches
+        const unlisten = listen('project-switched', () => {
+             loadFromDb();
+        });
+
+        return () => {
+            unlisten.then((f: any) => f());
+        };
+    }, [workspacePath, setProjectConfig]);
 
     // Deploy to all modules
     const handleDeployToAll = async (onDeployComplete?: (config: ProjectConfig) => void) => {
@@ -170,15 +267,18 @@ export function useProjectActions({
         try {
             const path = await invoke<string | null>('pick_folder');
             if (path) {
+                // Switch project in backend
+                await invoke('switch_project', { workspacePath: path });
+                
                 setWorkspacePath(path);
                 setMessages(msgs => [...msgs, { 
                     role: 'assistant', 
-                    content: `📁 專案資料夾已設定：\n\`${path}\`\n\n現在你可以告訴我想做什麼專案了！` 
+                    content: `📁 專案資料夾已切換且資料已載入：\n\`${path}\`\n\n現在你可以告訴我想做什麼專案了！` 
                 }]);
             }
         } catch (err) {
             console.error('Failed to pick folder:', err);
-            setMessages(msgs => [...msgs, { role: 'assistant', content: `❌ 選擇資料夾失敗：${err}` }]);
+            setMessages(msgs => [...msgs, { role: 'assistant', content: `❌ 切換資料夾失敗：${err}` }]);
         }
     };
     
@@ -191,6 +291,7 @@ export function useProjectActions({
             if (!parentPath) return;
             
             const newFolderPath = `${parentPath}/${folderName}`;
+            // 建立目錄結構並寫入初始檔案
             await invoke('write_workspace_file', { 
                 relativePath: '.taskrails/project.json',
                 content: JSON.stringify({ 
@@ -199,6 +300,9 @@ export function useProjectActions({
                 }, null, 2),
                 basePath: newFolderPath
             });
+            
+            // Switch project in backend
+            await invoke('switch_project', { workspacePath: newFolderPath });
             
             setWorkspacePath(newFolderPath);
             if (!projectConfig.projectName) {
@@ -251,11 +355,17 @@ export function useProjectActions({
         setMessages(msgs => [...msgs, { role: 'assistant', content: `✅ 專案「${projectName}」已儲存！${workspacePath ? `\n📁 資料夾：${workspacePath}` : ''}` }]);
     };
     
-    const handleLoadSavedProject = (projectId: string) => {
+    const handleLoadSavedProject = async (projectId: string) => {
         try {
             const saved = localStorage.getItem(`taskrails_project_${projectId}`);
             if (saved) {
                 const projectData = JSON.parse(saved);
+                
+                // Switch project in backend first if it has a workspacePath
+                if (projectData.workspacePath) {
+                    await invoke('switch_project', { workspacePath: projectData.workspacePath });
+                }
+
                 if (projectData.config) setProjectConfig(projectData.config);
                 if (projectData.messages) setMessages(projectData.messages);
                 if (projectData.workspacePath) setWorkspacePath(projectData.workspacePath);
