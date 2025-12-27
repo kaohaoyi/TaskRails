@@ -1,0 +1,38 @@
+graph TD
+    subgraph "Local Environment (User PC)"
+        User[User (PM/Architect)]
+        
+        subgraph "TaskRails Core (Tauri)"
+            UI[React Frontend]
+            Backend[Rust Backend]
+            DB[(SQLite)]
+            
+            subgraph "Vibe Core Modules"
+                MermaidEngine[Active Mermaid Engine]
+                Refiner[Prompt Refiner]
+            end
+        end
+        
+        subgraph "Local Services"
+            LM_Studio[LM Studio (Qwen 3.0)]
+        end
+    end
+    
+    subgraph "External/Cloud"
+        CloudLLM[Cloud IDE / LLM (Claude/GPT)]
+    end
+
+    %% Flows
+    User -->|1. Natural Language / Diagram| UI
+    UI -->|2. Draft Plan| MermaidEngine
+    
+    MermaidEngine -->|3. Planning Context| Refiner
+    Refiner -->|4. Refine Request| LM_Studio
+    LM_Studio -->|5. Structured Prompt| Refiner
+    
+    Refiner -->|6. Sync Task| Backend
+    Backend -->|7. Persist| DB
+    
+    %% Execution
+    Backend -->|8. Dispatch Task| CloudLLM
+    CloudLLM -->|9. Code Generation| Backend

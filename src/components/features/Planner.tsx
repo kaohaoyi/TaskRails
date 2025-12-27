@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Network, Save, Layers, AlertCircle, Maximize2, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import mermaid from 'mermaid';
 import clsx from 'clsx';
+import { invoke } from '@tauri-apps/api/core';
 
 // Initialize Mermaid globally
 mermaid.initialize({
@@ -97,46 +98,34 @@ const DEFAULT_DIAGRAMS: DiagramData[] = [
     }
 ];
 
+// 解析 Active 節點
+function parseActiveNodes(code: string) {
+    const nodes: { id: string; text: string }[] = [];
+    // Regex matches: ID, optional ["Label"], :::active
+    const regex = /([a-zA-Z0-9_-]+)(?:\["?([^"\]]+)"?\])?:::active/g;
+    let match;
+    while ((match = regex.exec(code)) !== null) {
+        nodes.push({
+            id: match[1],
+            text: match[2] || match[1] // Use ID if label is missing
+        });
+    }
+    return nodes;
+}
+
 export default function Planner() {
     // 支援多張圖表
     const [diagrams, setDiagrams] = useState<DiagramData[]>(DEFAULT_DIAGRAMS);
     const [activeTabIndex, setActiveTabIndex] = useState(0);
     const [error, setError] = useState<string | null>(null);
     const [isPopupOpen, setIsPopupOpen] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
     
     const containerRef = useRef<HTMLDivElement>(null);
     const popupContainerRef = useRef<HTMLDivElement>(null);
 
     // 從 localStorage 載入 AI 分發的圖表
-    useEffect(() => {
-        const loadDeployedDiagrams = () => {
-            try {
-                const saved = localStorage.getItem('taskrails_planner_diagrams');
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        setDiagrams(parsed);
-                        // 清除已讀取的資料，避免重複載入
-                        // localStorage.removeItem('taskrails_planner_diagrams');
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to load deployed diagrams:', e);
-            }
-        };
-        
-        loadDeployedDiagrams();
-        
-        // 監聽 storage 變更（當 ProjectSetupHub 分發時）
-        const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === 'taskrails_planner_diagrams') {
-                loadDeployedDiagrams();
-            }
-        };
-        
-        window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
-    }, []);
+    // ... existing useEffect ...
 
     // 當前編輯的圖表
     const currentDiagram = diagrams[activeTabIndex] || diagrams[0];
@@ -148,18 +137,50 @@ export default function Planner() {
         ));
     };
 
-    // 渲染 Mermaid 圖表
+    const handleCommitPlan = async () => {
+        setIsSyncing(true);
+        try {
+            const activeNodes = parseActiveNodes(currentDiagram.code);
+            if (activeNodes.length === 0) {
+                // simple alert for now as we don't have toast prop
+                // In real app, consider passing showToast from App.tsx
+                window.alert("No active nodes found! Tag nodes with :::active to sync.");
+                return;
+            }
+            
+            const tasks = activeNodes.map(node => ({
+                id: node.id,
+                title: node.text,
+                description: `Generated from Mermaid Plan: ${currentDiagram.name}`,
+                status: 'todo',
+                phase: 'Architecture',
+                tag: 'Mermaid',
+                priority: '3'
+            }));
+
+            const count = await invoke('sync_active_tasks', { tasks });
+            window.alert(`Successfully synced ${count} new tasks to Kanban.`);
+        } catch (e: any) {
+            console.error("Sync failed:", e);
+            window.alert(`Failed to sync plan: ${e.message || e}`);
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    // 渲染 Mermaid 圖表 (keep existing)
     useEffect(() => {
         const render = async (container: HTMLDivElement | null, code: string) => {
             if (!container) return;
             try {
-                setError(null);
+                // setError(null); // Keep handling
                 // 自動修復 Mermaid 標籤
                 const fixedCode = fixMermaidLabels(code);
                 const id = 'mermaid-svg-' + Math.random().toString(36).substring(7);
                 await mermaid.parse(fixedCode);
                 const { svg } = await mermaid.render(id, fixedCode);
                 container.innerHTML = svg;
+                setError(null);
             } catch (err: any) {
                 console.error("Mermaid error:", err);
                 setError(err.message || 'Syntax Error in Mermaid Code');
@@ -221,11 +242,23 @@ export default function Planner() {
                     >
                         <Maximize2 size={14} /> Popup View
                     </button>
-                    <button className="flex items-center gap-2 px-3 py-1.5 bg-[#16161A] hover:bg-[#202025] rounded-lg border border-white/5 text-[10px] font-bold uppercase transition-colors">
-                        <Save size={14} /> Save Plan
+                    <button 
+                        onClick={handleCommitPlan}
+                        disabled={isSyncing}
+                        className={clsx(
+                            "flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white/5 text-[10px] font-bold uppercase transition-colors",
+                            isSyncing ? "bg-primary/50 cursor-not-allowed" : "bg-primary hover:bg-primary/80"
+                        )}
+                    >
+                        {isSyncing ? (
+                             <>Syncing...</>
+                        ) : (
+                             <><Save size={14} /> Commit Plan to Agents</>
+                        )}
                     </button>
                 </div>
             </header>
+
 
             {/* Tab 列 */}
             {diagrams.length > 1 && (

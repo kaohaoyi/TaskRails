@@ -669,7 +669,57 @@ pub fn get_memory(
     crate::memory_bank::read_memory(&workspace, &name)
 }
 
+// ============ Vibe Core Commands ============
+
 #[tauri::command]
-pub fn update_memory(workspace: String, name: String, content: String) -> Result<(), String> {
-    crate::memory_bank::write_memory(&workspace, &name, &content)
+pub async fn check_local_llm_connection() -> Result<bool, String> {
+    let refiner = crate::mcp::prompt_refiner::PromptRefiner::new();
+    Ok(refiner.check_health().await)
+}
+
+#[tauri::command]
+pub async fn refine_prompt(user_intent: String, context: String) -> Result<String, String> {
+    let refiner = crate::mcp::prompt_refiner::PromptRefiner::new();
+    refiner
+        .refine_user_intent(&user_intent, &context)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn sync_active_tasks(
+    db_state: State<'_, DbState>,
+    tasks: Vec<TaskData>,
+) -> Result<usize, String> {
+    let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+    let mut count = 0;
+
+    for task in tasks {
+        // Upsert logic - only insert if not exists to avoid overwriting user edits
+        let exists: bool = conn
+            .query_row("SELECT 1 FROM tasks WHERE id = ?1", [&task.id], |_| {
+                Ok(true)
+            })
+            .unwrap_or(false);
+
+        if !exists {
+            conn.execute(
+                "INSERT INTO tasks (id, title, description, status, phase, priority, tag, assignee, is_reworked) 
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                rusqlite::params![
+                    task.id,
+                    task.title,
+                    task.description,
+                    task.status,
+                    task.phase.unwrap_or_else(|| "PHASE 1".to_string()),
+                    task.priority.unwrap_or_else(|| "3".to_string()),
+                    task.tag,
+                    task.assignee,
+                    0
+                ],
+            ).map_err(|e| e.to_string())?;
+            count += 1;
+        }
+    }
+    Ok(count)
 }

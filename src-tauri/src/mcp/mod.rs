@@ -1,3 +1,5 @@
+pub mod local_llm;
+pub mod prompt_refiner;
 pub mod sse;
 pub mod stdio;
 pub mod token_monitor;

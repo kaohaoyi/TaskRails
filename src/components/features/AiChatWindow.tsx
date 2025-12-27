@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Send, Trash2, Copy, Square, Settings as SettingsIcon, MessageSquarePlus, History, Save } from 'lucide-react';
+import { Sparkles, Send, Trash2, Copy, Square, Settings as SettingsIcon, MessageSquarePlus, History, Save, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useTranslation } from '../../hooks/useTranslation';
 import { invoke } from '@tauri-apps/api/core';
 import clsx from 'clsx';
@@ -178,45 +178,74 @@ export default function AiChatWindow() {
         }
     };
 
+    const [isHybridMode, setIsHybridMode] = useState(true);
+    const [localLlmConnected, setLocalLlmConnected] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        if (isHybridMode) {
+            invoke<boolean>('check_local_llm_connection')
+                .then(setLocalLlmConnected)
+                .catch(() => setLocalLlmConnected(false));
+        }
+    }, [isHybridMode]);
+
     const handleSendMessage = async () => {
         if (!chatInput.trim() || isThinking) return;
         
         const userMsg = chatInput;
         const newMessages = [...messages, { role: 'user', content: userMsg }];
         setMessages(newMessages as any);
-        updateCurrentSession(newMessages as any); // Save user message immediately
+        updateCurrentSession(newMessages as any);
 
         setChatInput('');
         setIsThinking(true);
 
         try {
-            // Assemble System Prompt with Skills
-            let finalSystemPrompt = systemPrompt;
-            if (selectedSkills.length > 0) {
-                const skillPrompts = availableSkills
-                    .filter(s => selectedSkills.includes(s.name))
-                    .map(s => `[Skill: ${s.name}]\n${s.prompt_layer}`)
-                    .join('\n\n');
-                finalSystemPrompt += `\n\n=== ACTIVATED SKILLS ===\n${skillPrompts}`;
+            let response: string;
+
+            if (isHybridMode) {
+                // Local Architect Flow
+                if (localLlmConnected === false) {
+                     response = "錯誤：無法連接到 Local LLM (LM Studio)。請確認服務已在 localhost:1234 啟動，或切換回 Direct Mode。";
+                } else {
+                    // Fetch simple context for now
+                    const spec = await invoke<any>('get_project_spec').catch(() => null);
+                    const context = spec ? `Project: ${spec.name}\nTech Stack: ${spec.tech_stack}\n` : "No specific project context loaded.";
+                    
+                    response = await invoke<string>('refine_prompt', { 
+                        userIntent: userMsg,
+                        context 
+                    });
+                }
+            } else {
+                // Cloud Executor Flow (Original)
+                let finalSystemPrompt = systemPrompt;
+                if (selectedSkills.length > 0) {
+                    const skillPrompts = availableSkills
+                        .filter(s => selectedSkills.includes(s.name))
+                        .map(s => `[Skill: ${s.name}]\n${s.prompt_layer}`)
+                        .join('\n\n');
+                    finalSystemPrompt += `\n\n=== ACTIVATED SKILLS ===\n${skillPrompts}`;
+                }
+    
+                const apiMessages = [
+                    { role: 'system', content: finalSystemPrompt },
+                    ...newMessages
+                ];
+    
+                response = await invoke<string>('execute_ai_chat', { 
+                    messages: apiMessages,
+                    overrideProvider: currentProvider,
+                    overrideModel: currentModel
+                });
             }
-
-            const apiMessages = [
-                { role: 'system', content: finalSystemPrompt },
-                ...newMessages
-            ];
-
-            const response = await invoke<string>('execute_ai_chat', { 
-                messages: apiMessages,
-                overrideProvider: currentProvider,
-                overrideModel: currentModel
-            });
             
             setIsThinking(prev => {
                 if (prev) {
                     setMessages(msgs => {
                         if (msgs.length > 0 && msgs[msgs.length - 1].content === response) return msgs;
                         const updated = [...msgs, { role: 'assistant', content: response }];
-                        updateCurrentSession(updated as any); // Save AI response
+                        updateCurrentSession(updated as any);
                         return updated as any;
                     });
                 }
@@ -325,6 +354,24 @@ export default function AiChatWindow() {
                             {availableProviders.map(p => <option key={p} value={p} className="bg-[#0A0A0C]">{p.toUpperCase()}</option>)}
                         </select>
                         </div>
+                        <div className="w-px h-3 bg-white/5 opacity-50"></div>
+                        
+                        <div className="flex items-center gap-2">
+                            <span className="text-[8px] font-black text-gray-600 uppercase tracking-widest">Hybrid:</span>
+                            <button 
+                                onClick={() => setIsHybridMode(!isHybridMode)}
+                                className={clsx(
+                                    "flex items-center gap-1 text-[10px] font-black uppercase tracking-widest transition-colors",
+                                    isHybridMode ? "text-primary" : "text-gray-500"
+                                )}
+                            >
+                                {isHybridMode ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                                <span className={localLlmConnected === false && isHybridMode ? "text-red-500" : ""}>
+                                    {isHybridMode ? "ON" : "OFF"}
+                                </span>
+                            </button>
+                        </div>
+
                         <div className="w-px h-3 bg-white/5 opacity-50"></div>
                         <div className="flex items-center gap-2">
                         <span className="text-[8px] font-black text-gray-600 uppercase tracking-widest">MODEL:</span>

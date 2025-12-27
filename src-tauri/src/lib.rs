@@ -104,7 +104,11 @@ pub fn run() {
             // Memory Bank Commands
             commands::get_memory_list,
             commands::get_memory,
-            commands::update_memory
+            commands::update_memory,
+            // Vibe Core Commands
+            commands::check_local_llm_connection,
+            commands::refine_prompt,
+            commands::sync_active_tasks
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
