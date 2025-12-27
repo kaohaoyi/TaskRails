@@ -208,9 +208,31 @@ export default function AiChatWindow() {
                 if (localLlmConnected === false) {
                      response = "錯誤：無法連接到 Local LLM (LM Studio)。請確認服務已在 localhost:1234 啟動，或切換回 Direct Mode。";
                 } else {
-                    // Fetch simple context for now
-                    const spec = await invoke<any>('get_project_spec').catch(() => null);
-                    const context = spec ? `Project: ${spec.name}\nTech Stack: ${spec.tech_stack}\n` : "No specific project context loaded.";
+                    // Fetch Memory Bank Context (Vibe Core Phase 2)
+                    let context = "";
+                    const workspace = "."; 
+                    
+                    try {
+                        // Priority 1: Load from Memory Bank
+                        const files = await invoke<string[]>('get_memory_list', { workspace });
+                        if (files && files.length > 0) {
+                            for (const file of files) {
+                                // Only load key architectural files to save tokens
+                                if (['specs', 'tech-stack', 'architecture'].includes(file)) {
+                                    const entry = await invoke<{content: string}>('get_memory', { workspace, name: file });
+                                    context += `\n=== @${file}.md ===\n${entry.content}\n`;
+                                }
+                            }
+                        }
+                    } catch (e) {
+                         console.warn("Could not load memory bank:", e);
+                    }
+                    
+                    // Priority 2: Fallback to partial Db Spec
+                    if (!context.trim()) {
+                         const spec = await invoke<any>('get_project_spec').catch(() => null);
+                         context = spec ? `Project: ${spec.name}\nTech Stack: ${spec.tech_stack}\n` : "No specific project context loaded.";
+                    }
                     
                     response = await invoke<string>('refine_prompt', { 
                         userIntent: userMsg,

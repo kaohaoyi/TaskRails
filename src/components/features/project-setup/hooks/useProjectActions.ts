@@ -59,6 +59,31 @@ export function useProjectActions({
             if (projectConfig.generatedDiagrams && projectConfig.generatedDiagrams.length > 0) {
                 localStorage.setItem('taskrails_planner_diagrams', JSON.stringify(projectConfig.generatedDiagrams));
             }
+
+            // Generate Memory Bank Files (Vibe Core)
+            const memoryPath = workspacePath || '.';
+            
+            // 1. specs.md
+            await invoke('update_memory', {
+                workspace: memoryPath,
+                name: 'specs',
+                content: `# ${projectConfig.projectName || 'Project'} Specs\n\n## Overview\n${projectConfig.projectGoal}\n\n## Features\n${projectConfig.features.join('\n- ')}\n\n## Rules\n${projectConfig.engineeringRules}`
+            }).catch(e => console.error('Failed to write specs.md', e));
+
+            // 2. tech-stack.md
+            await invoke('update_memory', {
+                workspace: memoryPath,
+                name: 'tech-stack',
+                content: `# Technology Stack\n\n${projectConfig.techStack.join('\n- ')}`
+            }).catch(e => console.error('Failed to write tech-stack.md', e));
+
+            // 3. architecture.md
+            await invoke('update_memory', {
+                workspace: memoryPath,
+                name: 'architecture',
+                content: `# System Architecture\n\n## Design\n${projectConfig.designSpec}\n\n## Data Structure\n${projectConfig.dataStructure}`
+            }).catch(e => console.error('Failed to write architecture.md', e));
+
             
             // 儲存 Agents 到 AgentLab 格式（依專案分組）
             if (projectConfig.generatedAgents && projectConfig.generatedAgents.length > 0) {

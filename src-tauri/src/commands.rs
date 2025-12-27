@@ -669,6 +669,11 @@ pub fn get_memory(
     crate::memory_bank::read_memory(&workspace, &name)
 }
 
+#[tauri::command]
+pub fn update_memory(workspace: String, name: String, content: String) -> Result<(), String> {
+    crate::memory_bank::write_memory(&workspace, &name, &content)
+}
+
 // ============ Vibe Core Commands ============
 
 #[tauri::command]

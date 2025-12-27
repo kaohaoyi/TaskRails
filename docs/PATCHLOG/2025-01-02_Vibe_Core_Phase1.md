@@ -46,6 +46,6 @@ Integrate "Vibe Core" concepts into TaskRails V1.1, specifically:
 
 ### Known Issues / Blockers
 
-- **LM Studio Connection:** `check_local_llm_connection` fails on `localhost:1234`.
-  - **Status:** BLOCKER.
-  - **Action Required:** User must verify LM Studio is running, server is started, and port is 1234.
+- **LM Studio Connection:** `check_local_llm_connection` verified successfully.
+  - **Status:** RESOLVED.
+  - **Action Required:** None. Connection established.

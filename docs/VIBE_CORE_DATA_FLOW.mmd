@@ -1,0 +1,30 @@
+flowchart TD
+    subgraph "用戶交互 (User Interaction)"
+        U["用戶"] -->|"輸入意圖 (Input)"| ChatUI["AI 聊天視窗"]
+        ChatUI -->|"切換 (Toggle)"| HybridMode{"混合模式 (Hybrid)?"}
+    end
+
+    subgraph "本地層 [架構師] (Local Layer)"
+        HybridMode -- "是 (YES)" --> LocalRefiner["提示詞優化器"]
+        LocalRefiner -->|"1. 淨化 (Sanitize)"| LMStudio["LM Studio (本地大模型)"]
+        LMStudio -->|"優化後提示詞"| LocalRefiner
+        LocalRefiner -->|"上下文組裝"| Context["記憶庫 (Memory Bank)"]
+    end
+
+    subgraph "雲端層 [執行者] (Cloud Layer)"
+        HybridMode -- "否 (NO)" --> CloudExecutor
+        LocalRefiner -- "優化後意圖" --> CloudExecutor["雲端大模型 (Cloud LLM)"]
+        CloudExecutor -->|"代碼生成"| Codebase["程式碼庫"]
+        CloudExecutor -->|"任務更新"| Kanban["看板 (Kanban)"]
+    end
+
+    subgraph "動態架構引擎 (Active Mermaid Engine)"
+        Planner["規劃器介面 (Planner UI)"] -->|"繪製 (Draw)"| Diagram["架構圖"]
+        Diagram -->|":::active 標籤"| ActiveNodes["活躍節點 (Active Nodes)"]
+        ActiveNodes -->|"提交計畫 (Commit)"| SyncService["同步服務"]
+        SyncService -->|"建立任務"| Kanban
+    end
+
+    style LMStudio fill:#1e1e1e,stroke:#0f0,stroke-width:2px
+    style HybridMode fill:#333,stroke:#fff,stroke-width:2px
+    style ActiveNodes fill:#2a0a2a,stroke:#f0f,stroke-width:2px:::active
