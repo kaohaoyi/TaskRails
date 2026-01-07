@@ -80,3 +80,18 @@ pub fn list_memories(workspace_root: &str) -> Result<Vec<String>, String> {
 
     Ok(names)
 }
+/// [目的] 刪除記憶檔案
+/// [輸入] workspace_root: 工作區根目錄, name: 檔案名稱
+/// [輸出] Result<(), String>
+pub fn delete_memory(workspace_root: &str, name: &str) -> Result<(), String> {
+    let file_name = format!("@{}.md", name);
+    let path = get_memory_bank_path(workspace_root).join(&file_name);
+
+    if path.exists() {
+        fs::remove_file(&path).map_err(|e| format!("無法刪除檔案 {}: {}", file_name, e))?;
+        println!("[MemoryBank] Deleted: {:?}", path);
+        Ok(())
+    } else {
+        Err(format!("檔案不存在: {}", file_name))
+    }
+}

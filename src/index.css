@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-300 overflow-hidden select-none;
+    @apply bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-300 overflow-hidden;
     font-family: "Outfit", "Inter", "Noto Sans TC", sans-serif;
   }
 

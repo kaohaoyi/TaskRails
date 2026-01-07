@@ -1,6 +1,5 @@
 use crate::db::DbState;
 use crate::state_machine::{AppState, StateManager};
-use rusqlite;
 use tauri::State;
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -238,6 +237,83 @@ pub async fn open_chat_window(app: tauri::AppHandle) -> Result<(), String> {
 /// Switch to a different project's database
 /// This is called when user selects a new workspace folder
 #[tauri::command]
+pub async fn initialize_new_project(
+    app_handle: tauri::AppHandle,
+    db_state: State<'_, DbState>,
+) -> Result<Option<String>, String> {
+    // 1. Pick Folder
+    let path = rfd::AsyncFileDialog::new().pick_folder().await;
+    let workspace_path = match path {
+        Some(p) => p.path().to_string_lossy().to_string(),
+        None => return Ok(None),
+    };
+
+    // 2. Switch Project DB
+    crate::db::switch_project(&db_state, &workspace_path)
+        .map_err(|e| format!("切換專案失敗: {}", e))?;
+
+    // 3. Reset Database (Immediately after switch, before notification)
+    {
+        let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM tasks", [])
+            .map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM roles", [])
+            .map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM project_spec", [])
+            .map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM chat_history", [])
+            .map_err(|e| e.to_string())?;
+        conn.execute("DELETE FROM system_activity", [])
+            .map_err(|e| e.to_string())?;
+
+        // Re-insert default roles
+        let default_roles = vec![
+            (
+                "ai_antigravity",
+                "架構師",
+                "Antigravity",
+                "ai",
+                "你是系統架構師。專注於高層設計、模組劃分、技術選型與架構決策。",
+            ),
+            (
+                "ai_codegen",
+                "開發者",
+                "CodeGen-1",
+                "ai",
+                "你是資深開發工程師。專注於撰寫高品質、可測試的程式碼。",
+            ),
+            (
+                "ai_review_bot",
+                "審查者",
+                "ReviewBot",
+                "ai",
+                "你是程式碼審查專家。專注於發現潛在問題、安全漏洞、效能瓶頸。",
+            ),
+        ];
+
+        for (id, name, agent_name, role_type, prompt) in default_roles {
+            conn.execute(
+                "INSERT OR IGNORE INTO roles (id, name, agent_name, role_type, system_prompt, is_default) VALUES (?1, ?2, ?3, ?4, ?5, 1)",
+                [id, name, agent_name, role_type, prompt],
+            ).map_err(|e| e.to_string())?;
+        }
+
+        // Save to global settings
+        conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES ('workspace_path', ?1)",
+            [&workspace_path],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+
+    // 4. Notify Frontend ONLY AFTER everything is clean
+    use tauri::Emitter;
+    let _ = app_handle.emit("project-switched", &workspace_path);
+
+    Ok(Some(workspace_path))
+}
+
+#[tauri::command]
 pub fn switch_project(
     app_handle: tauri::AppHandle,
     db_state: State<'_, DbState>,
@@ -268,4 +344,54 @@ pub fn switch_project(
 pub fn get_current_workspace(db_state: State<'_, DbState>) -> Result<Option<String>, String> {
     let ws_guard = db_state.current_workspace.lock().unwrap();
     Ok(ws_guard.clone())
+}
+#[tauri::command]
+pub fn reset_project_database(db_state: State<'_, DbState>) -> Result<(), String> {
+    let conn = db_state.conn.lock().map_err(|e| e.to_string())?;
+
+    // Clear main tables
+    conn.execute("DELETE FROM tasks", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM roles", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM project_spec", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM chat_history", [])
+        .map_err(|e| e.to_string())?;
+    conn.execute("DELETE FROM system_activity", [])
+        .map_err(|e| e.to_string())?;
+
+    // Re-insert default roles (since we deleted all roles)
+    let default_roles = vec![
+        (
+            "ai_antigravity",
+            "架構師",
+            "Antigravity",
+            "ai",
+            "你是系統架構師。專注於高層設計、模組劃分、技術選型與架構決策。",
+        ),
+        (
+            "ai_codegen",
+            "開發者",
+            "CodeGen-1",
+            "ai",
+            "你是資深開發工程師。專注於撰寫高品質、可測試的程式碼。",
+        ),
+        (
+            "ai_review_bot",
+            "審查者",
+            "ReviewBot",
+            "ai",
+            "你是程式碼審查專家。專注於發現潛在問題、安全漏洞、效能瓶頸。",
+        ),
+    ];
+
+    for (id, name, agent_name, role_type, prompt) in default_roles {
+        conn.execute(
+            "INSERT OR IGNORE INTO roles (id, name, agent_name, role_type, system_prompt, is_default) VALUES (?1, ?2, ?3, ?4, ?5, 1)",
+            [id, name, agent_name, role_type, prompt],
+        ).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
 }

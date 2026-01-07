@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
     Sparkles, Send, Copy, Check,
-    Settings as SettingsIcon, X
+    Settings as SettingsIcon, X, BrainCircuit, ChevronRight, RotateCcw
 } from 'lucide-react';
+import { TokenCounterCompact } from '../ui/TokenCounter';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import clsx from 'clsx';
 import { PROVIDER_MODELS } from '../../constants/ai-models';
+import { AiSettingsDropdown } from './project-setup/AiSettingsDropdown';
 import { 
     ProjectConfig, 
     parseProjectConfigFromAI,
@@ -16,6 +19,47 @@ import {
 } from '../../utils/projectConfig';
 
 import { Message } from '../../types/project-setup';
+
+const MessageContent = ({ content }: { content: string }) => {
+    // 使用更穩健的 split 方式處理多個或未閉合的 <think> 區塊
+    const parts = content.split(/(<think>[\s\S]*?<\/think>|<think>[\s\S]*?$)/g);
+    
+    return (
+        <div className="space-y-3">
+            {parts.map((part, i) => {
+                if (part.startsWith('<think>')) {
+                    const thinking = part.replace('<think>', '').replace('</think>', '').trim();
+                    if (!thinking) return null;
+                    return (
+                        <details key={i} className="group/think overflow-hidden bg-white/[0.03] border border-white/5 rounded-xl transition-all">
+                            <summary className="list-none cursor-pointer px-3 py-2 flex items-center gap-2 hover:bg-white/5 transition-colors">
+                                <div className="w-5 h-5 flex items-center justify-center rounded-lg bg-primary/10 text-primary group-open/think:rotate-90 transition-transform duration-300">
+                                    <ChevronRight size={12} />
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-gray-300 transition-colors">
+                                    <BrainCircuit size={12} className="text-primary/50" />
+                                    AI 思考過程 (推理)
+                                </div>
+                            </summary>
+                            <div className="px-4 py-3 text-[12px] text-gray-500 border-t border-white/5 whitespace-pre-wrap leading-relaxed font-mono">
+                                {thinking}
+                            </div>
+                        </details>
+                    );
+                }
+                
+                const trimmed = part.trim();
+                if (!trimmed) return null;
+                
+                return (
+                    <div key={i} className="whitespace-pre-wrap select-text leading-relaxed">
+                        {trimmed}
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
 
 // Popup 視窗專用的聊天介面
 export default function ProjectSetupPopup() {
@@ -32,7 +76,7 @@ export default function ProjectSetupPopup() {
     const [currentProvider, setCurrentProvider] = useState<string>('google');
     const [currentModel, setCurrentModel] = useState<string>('gemini-2.0-flash');
     const [outputLanguage, setOutputLanguage] = useState<Language>('zh-TW');
-    const [availableProviders] = useState<string[]>(['google', 'openai', 'anthropic', 'ollama']);
+    const [availableProviders, setAvailableProviders] = useState<string[]>(['google', 'openai', 'anthropic', 'ollama']);
     const [showAiSettings, setShowAiSettings] = useState(false);
     
     // Copy feedback state
@@ -42,17 +86,38 @@ export default function ProjectSetupPopup() {
     
     // 從 localStorage 載入狀態
     useEffect(() => {
-        const loadState = () => {
+        const loadState = async () => {
             try {
+                // Load AI provider settings
+                const available: string[] = ['ollama', 'custom'];
+                for (const p of Object.keys(PROVIDER_MODELS)) {
+                    if (p === 'ollama' || p === 'custom') continue;
+                    let key = await invoke<string | null>('get_setting', { key: `ai_api_key_${p}` }).catch(() => null);
+                    if (!key) key = localStorage.getItem(`taskrails_api_key_${p}`);
+                    if (key && key.trim().length > 0) available.push(p);
+                }
+                setAvailableProviders(available);
+
                 const saved = localStorage.getItem('taskrails_popup_state');
                 if (saved) {
                     const state = JSON.parse(saved);
                     if (state.messages) setMessages(state.messages);
                     if (state.projectConfig) setProjectConfig(state.projectConfig);
-                    if (state.currentProvider) setCurrentProvider(state.currentProvider);
-                    if (state.currentModel) setCurrentModel(state.currentModel);
-                    if (state.outputLanguage) setOutputLanguage(state.outputLanguage);
                 }
+
+                // Load Global AI Settings (Override stale popup state)
+                let provider = await invoke<string | null>('get_setting', { key: 'ai_provider' }).catch(() => null);
+                let model = await invoke<string | null>('get_setting', { key: 'ai_model' }).catch(() => null);
+                let lang = await invoke<string | null>('get_setting', { key: 'taskrails_language' }).catch(() => null);
+                
+                if (!provider) provider = localStorage.getItem('taskrails_ai_provider');
+                if (!model) model = localStorage.getItem('taskrails_ai_model');
+                
+                if (provider && available.includes(provider)) {
+                    setCurrentProvider(provider);
+                    if (model) setCurrentModel(model);
+                }
+                if (lang) setOutputLanguage(lang as Language);
             } catch (err) {
                 console.error('Failed to load popup state:', err);
             }
@@ -60,15 +125,31 @@ export default function ProjectSetupPopup() {
         
         loadState();
         
+        // Listen for global AI sync
+        const unlistenSync = listen('ai-settings-changed', (event: any) => {
+            const { provider, model, language } = event.payload;
+            if (provider) setCurrentProvider(provider);
+            if (model) setCurrentModel(model);
+            if (language) setOutputLanguage(language);
+        });
+
         // 監聽 storage 事件以同步狀態
         const handleStorageChange = (e: StorageEvent) => {
             if (e.key === 'taskrails_popup_state') {
-                loadState();
+                const saved = localStorage.getItem('taskrails_popup_state');
+                if (saved) {
+                    const state = JSON.parse(saved);
+                    if (state.messages) setMessages(state.messages);
+                    if (state.projectConfig) setProjectConfig(state.projectConfig);
+                }
             }
         };
         
         window.addEventListener('storage', handleStorageChange);
-        return () => window.removeEventListener('storage', handleStorageChange);
+        return () => {
+            window.removeEventListener('storage', handleStorageChange);
+            unlistenSync.then((f: any) => f());
+        };
     }, []);
     
     // 儲存狀態到 localStorage
@@ -136,8 +217,12 @@ export default function ProjectSetupPopup() {
                 setProjectConfig(prev => ({
                     ...prev,
                     ...parsedConfig,
-                    techStack: parsedConfig.techStack?.length ? parsedConfig.techStack : prev.techStack,
-                    features: parsedConfig.features?.length ? parsedConfig.features : prev.features,
+                    // 確保陣列類型的欄位在 parsedConfig 中不存在時不被覆蓋
+                    techStack: parsedConfig.techStack || prev.techStack,
+                    features: parsedConfig.features || prev.features,
+                    generatedAgents: parsedConfig.generatedAgents || prev.generatedAgents,
+                    generatedDiagrams: parsedConfig.generatedDiagrams || prev.generatedDiagrams,
+                    generatedTasks: parsedConfig.generatedTasks || prev.generatedTasks
                 }));
             }
             
@@ -167,59 +252,37 @@ export default function ProjectSetupPopup() {
                     <h2 className="text-lg font-black uppercase tracking-wider select-text">AI 專案設定對話</h2>
                 </div>
                 <div className="flex items-center gap-3">
-                    {/* AI Settings */}
-                    <div className="relative">
-                        <button 
-                            onClick={() => setShowAiSettings(!showAiSettings)}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition-colors"
+                    {/* AI Settings - Unified Dropdown */}
+                    <AiSettingsDropdown 
+                        currentProvider={currentProvider}
+                        setCurrentProvider={setCurrentProvider}
+                        currentModel={currentModel}
+                        setCurrentModel={setCurrentModel}
+                        outputLanguage={outputLanguage}
+                        setOutputLanguage={setOutputLanguage}
+                        availableProviders={availableProviders}
+                        showAiSettings={showAiSettings}
+                        setShowAiSettings={setShowAiSettings}
+                    />
+                    
+                    {/* Token Counter & New Chat */}
+                    <div className="flex items-center gap-2 px-2 py-1 bg-black/20 rounded-lg border border-white/5">
+                        <TokenCounterCompact 
+                            messages={messages.map(m => ({ role: m.role, content: m.content }))}
+                            model={currentModel}
+                        />
+                        <button
+                            onClick={() => {
+                                if (confirm('確定要開始新對話嗎？這將清除目前的對話歷史。')) {
+                                    setMessages([]);
+                                    setProjectConfig(getDefaultProjectConfig());
+                                }
+                            }}
+                            className="p-1.5 text-gray-500 hover:text-primary hover:bg-primary/10 rounded transition-all"
+                            title="開啟新對話"
                         >
-                            <SettingsIcon size={12} />
-                            {currentProvider.toUpperCase()} / {currentModel}
+                            <RotateCcw size={12} />
                         </button>
-                        
-                        {showAiSettings && (
-                            <div className="absolute top-full right-0 mt-2 w-64 bg-[#16161A] border border-white/10 rounded-xl shadow-2xl z-50 p-4 space-y-4">
-                                <div>
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">AI Provider</label>
-                                    <select
-                                        value={currentProvider}
-                                        onChange={(e) => {
-                                            setCurrentProvider(e.target.value);
-                                            setCurrentModel(PROVIDER_MODELS[e.target.value]?.[0] || '');
-                                        }}
-                                        className="w-full bg-[#0A0A0C] border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
-                                    >
-                                        {availableProviders.map(p => (
-                                            <option key={p} value={p}>{p.toUpperCase()}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Model</label>
-                                    <select
-                                        value={currentModel}
-                                        onChange={(e) => setCurrentModel(e.target.value)}
-                                        className="w-full bg-[#0A0A0C] border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
-                                    >
-                                        {PROVIDER_MODELS[currentProvider]?.map(m => (
-                                            <option key={m} value={m}>{m}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest block mb-2">Output Language</label>
-                                    <select
-                                        value={outputLanguage}
-                                        onChange={(e) => setOutputLanguage(e.target.value as Language)}
-                                        className="w-full bg-[#0A0A0C] border border-white/10 rounded-lg px-3 py-2 text-xs text-white"
-                                    >
-                                        <option value="zh-TW">繁體中文 (Traditional Chinese)</option>
-                                        <option value="en-US">English (US)</option>
-                                        <option value="ja-JP">日本語 (Japanese)</option>
-                                    </select>
-                                </div>
-                            </div>
-                        )}
                     </div>
                     
                     {/* Close Button */}
@@ -253,10 +316,10 @@ export default function ProjectSetupPopup() {
                         <div className={clsx(
                             "max-w-[85%] px-4 py-3 rounded-2xl text-[13px] leading-relaxed relative",
                             msg.role === 'user'
-                                ? "bg-primary text-white rounded-tr-none"
-                                : "bg-[#16161A] text-gray-300 border border-white/5 rounded-tl-none"
+                                ? "bg-primary text-white rounded-tr-none shadow-lg shadow-primary/10"
+                                : "bg-[#16161A] text-gray-300 border border-white/5 rounded-tl-none shadow-xl"
                         )}>
-                            <p className="whitespace-pre-wrap select-text">{msg.content}</p>
+                            <MessageContent content={msg.content} />
                             <button
                                 onClick={() => handleCopy(msg.content, `msg-${i}`)}
                                 className={clsx(

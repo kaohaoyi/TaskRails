@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import clsx from 'clsx';
-import { Send, Sparkles, Copy, Check } from 'lucide-react';
+import { Send, Sparkles, Copy, Check, BrainCircuit, ChevronRight } from 'lucide-react';
 import { Message } from '../../../types/project-setup';
 
 interface ChatInterfaceProps {
@@ -9,6 +9,47 @@ interface ChatInterfaceProps {
     onSendMessage: (content: string) => void | Promise<void>;
     messagesEndRef: any;
 }
+
+const MessageContent = ({ content }: { content: string }) => {
+    // 使用更穩健的 split 方式處理多個或未閉合的 <think> 區塊
+    const parts = content.split(/(<think>[\s\S]*?<\/think>|<think>[\s\S]*?$)/g);
+    
+    return (
+        <div className="space-y-3">
+            {parts.map((part, i) => {
+                if (part.startsWith('<think>')) {
+                    const thinking = part.replace('<think>', '').replace('</think>', '').trim();
+                    if (!thinking) return null;
+                    return (
+                        <details key={i} className="group/think overflow-hidden bg-white/[0.03] border border-white/5 rounded-xl transition-all">
+                            <summary className="list-none cursor-pointer px-3 py-2 flex items-center gap-2 hover:bg-white/5 transition-colors">
+                                <div className="w-5 h-5 flex items-center justify-center rounded-lg bg-primary/10 text-primary group-open/think:rotate-90 transition-transform duration-300">
+                                    <ChevronRight size={12} />
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-gray-300 transition-colors">
+                                    <BrainCircuit size={12} className="text-primary/50" />
+                                    AI 思考過程 (推理)
+                                </div>
+                            </summary>
+                            <div className="px-4 py-3 text-[12px] text-gray-500 border-t border-white/5 whitespace-pre-wrap leading-relaxed font-mono">
+                                {thinking}
+                            </div>
+                        </details>
+                    );
+                }
+                
+                const trimmed = part.trim();
+                if (!trimmed) return null;
+                
+                return (
+                    <div key={i} className="whitespace-pre-wrap select-text leading-relaxed">
+                        {trimmed}
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
 
 export function ChatInterface({
     messages,
@@ -47,10 +88,10 @@ export function ChatInterface({
             <div className={clsx(
                 "max-w-[85%] px-4 py-3 rounded-2xl text-[13px] leading-relaxed relative",
                 msg.role === 'user'
-                    ? "bg-primary text-white rounded-tr-none"
-                    : "bg-[#16161A] text-gray-300 border border-white/5 rounded-tl-none"
+                    ? "bg-primary text-white rounded-tr-none shadow-lg shadow-primary/10"
+                    : "bg-[#16161A] text-gray-300 border border-white/5 rounded-tl-none shadow-xl"
             )}>
-                <p className="whitespace-pre-wrap select-text">{msg.content}</p>
+                <MessageContent content={msg.content} />
                 <button
                     onClick={() => handleCopy(msg.content, `msg-${index}`)}
                     className={clsx(

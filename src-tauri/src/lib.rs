@@ -9,6 +9,7 @@ mod config;
 pub mod db;
 mod git_ops;
 pub mod mcp;
+pub mod mcp_hub;
 pub mod memory_bank;
 pub mod project_scanner;
 pub mod satellite;
@@ -70,6 +71,10 @@ pub fn run() {
 
             app.manage(db_state);
 
+            // Initialize MCP Hub for bidirectional control
+            let mcp_hub = std::sync::Arc::new(mcp_hub::McpHub::new());
+            app.manage(mcp_hub::McpHubWrapper(mcp_hub));
+
             let handle = app.handle().clone();
             // Spawn MCP SSE Server
             tauri::async_runtime::spawn(async move {
@@ -116,11 +121,13 @@ pub fn run() {
             commands::execute_ide_command,
             commands::log_activity,
             commands::get_activity,
-            commands::execute_ai_chat,
+            commands::ai::execute_ai_chat,
+            commands::ai::check_local_llm_connection,
+            commands::ai::verify_ai_connection,
+            commands::ai::get_available_skills,
             commands::get_project_spec,
             commands::update_project_spec,
             commands::open_chat_window,
-            commands::get_available_skills,
             commands::check_environment,
             commands::analyze_linter_output,
             // Experience Commands
@@ -130,6 +137,7 @@ pub fn run() {
             commands::get_memory_list,
             commands::get_memory,
             commands::update_memory,
+            commands::delete_memory,
             // Vibe Core Commands
             commands::check_local_llm_connection,
             commands::refine_prompt,
@@ -137,13 +145,24 @@ pub fn run() {
             // Project Switching
             commands::switch_project,
             commands::get_current_workspace,
+            commands::reset_project_database,
+            commands::initialize_new_project,
             // Project Analysis
             commands::scan_project,
             commands::generate_project_docs,
             // Chat History
             commands::save_chat_message,
             commands::get_chat_history,
-            commands::clear_chat_history
+            commands::clear_chat_history,
+            // MCP Hub Commands
+            mcp_hub::mcp_enqueue_command,
+            mcp_hub::mcp_get_pending_commands,
+            mcp_hub::mcp_acknowledge_command,
+            mcp_hub::mcp_report_result,
+            mcp_hub::mcp_get_results,
+            mcp_hub::mcp_get_state,
+            mcp_hub::mcp_set_connected,
+            mcp_hub::mcp_dispatch_task
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

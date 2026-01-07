@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, Send, Trash2, Copy, Square, Settings as SettingsIcon, MessageSquarePlus, History, Save, ToggleLeft, ToggleRight, Bot } from 'lucide-react';
+import { Sparkles, Send, Trash2, Copy, Square, Settings as SettingsIcon, MessageSquarePlus, History, Save, ToggleLeft, ToggleRight, Bot, BrainCircuit, ChevronRight } from 'lucide-react';
 import { useTranslation } from '../../hooks/useTranslation';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import clsx from 'clsx';
 import { PROVIDER_MODELS } from '../../constants/ai-models';
+import { AiSettingsDropdown } from './project-setup/AiSettingsDropdown';
+import { Language } from '../../utils/projectConfig';
+import { TokenCounter } from '../ui/TokenCounter';
+import { getChatWindowSystemPrompt } from '../../utils/ai-prompts';
 
 interface ChatSession {
     id: string;
@@ -17,6 +22,47 @@ interface SkillDefinition {
     description: string;
     prompt_layer: string;
 }
+
+const MessageContent = ({ content }: { content: string }) => {
+    // 使用更穩健的 split 方式處理多個或未閉合的 <think> 區塊
+    const parts = content.split(/(<think>[\s\S]*?<\/think>|<think>[\s\S]*?$)/g);
+    
+    return (
+        <div className="space-y-3">
+            {parts.map((part, i) => {
+                if (part.startsWith('<think>')) {
+                    const thinking = part.replace('<think>', '').replace('</think>', '').trim();
+                    if (!thinking) return null;
+                    return (
+                        <details key={i} className="group/think overflow-hidden bg-white/[0.03] border border-white/5 rounded-xl transition-all">
+                            <summary className="list-none cursor-pointer px-3 py-2 flex items-center gap-2 hover:bg-white/5 transition-colors">
+                                <div className="w-5 h-5 flex items-center justify-center rounded-lg bg-primary/10 text-primary group-open/think:rotate-90 transition-transform duration-300">
+                                    <ChevronRight size={12} />
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-500 group-hover:text-gray-300 transition-colors">
+                                    <BrainCircuit size={12} className="text-primary/50" />
+                                    AI 思考過程 (推理)
+                                </div>
+                            </summary>
+                            <div className="px-4 py-3 text-[12px] text-gray-500 border-t border-white/5 whitespace-pre-wrap leading-relaxed font-mono">
+                                {thinking}
+                            </div>
+                        </details>
+                    );
+                }
+                
+                const trimmed = part.trim();
+                if (!trimmed) return null;
+                
+                return (
+                    <div key={i} className="whitespace-pre-wrap select-text leading-relaxed">
+                        {trimmed}
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
 
 export default function AiChatWindow() {
     const t = useTranslation();
@@ -36,8 +82,12 @@ export default function AiChatWindow() {
     const [currentProvider, setCurrentProvider] = useState<string>('openai');
     const [currentModel, setCurrentModel] = useState<string>('gpt-4o');
     const [availableProviders, setAvailableProviders] = useState<string[]>(['openai', 'google', 'anthropic']);
-    const [systemPrompt, setSystemPrompt] = useState<string>(st.aiChat.defaultSystemPrompt);
+    const [systemPrompt, setSystemPrompt] = useState<string>(getChatWindowSystemPrompt('zh-TW'));
     const [showPromptEdit, setShowPromptEdit] = useState(false);
+    
+    // Unified AI settings state
+    const [outputLanguage, setOutputLanguage] = useState<Language>('zh-TW');
+    const [showAiSettings, setShowAiSettings] = useState(false);
     
     // Skills State
     const [availableSkills, setAvailableSkills] = useState<SkillDefinition[]>([]);
@@ -66,7 +116,26 @@ export default function AiChatWindow() {
             }
         };
         load();
-    }, []);
+
+        // Check for pending prompt from Kanban / Launch to IDE
+        const checkPendingPrompt = () => {
+            const pending = localStorage.getItem('taskrails_pending_prompt');
+            if (pending && !isThinking) {
+                setChatInput(pending);
+                localStorage.removeItem('taskrails_pending_prompt');
+                // Auto-trigger if we have input now
+                setTimeout(() => {
+                    const btn = document.getElementById('chat-send-button');
+                    btn?.click();
+                }, 100);
+            }
+        };
+
+        const interval = setInterval(checkPendingPrompt, 1000);
+        checkPendingPrompt(); // Initial check
+
+        return () => clearInterval(interval);
+    }, [isThinking]);
 
     // Provider & Settings Load
     useEffect(() => {
@@ -106,7 +175,24 @@ export default function AiChatWindow() {
             const customPrompt = await invoke<string | null>('get_setting', { key: 'ai_system_prompt' });
             if (customPrompt) setSystemPrompt(customPrompt);
         };
+
         checkKeys();
+
+        // Listen for global sync
+        const unlisten = listen('ai-settings-changed', (event: any) => {
+            const { provider, model, language } = event.payload;
+            if (provider) setCurrentProvider(provider);
+            if (model) setCurrentModel(model);
+            if (language) {
+                setOutputLanguage(language);
+                // Update system prompt to use the new language (only if not customized)
+                setSystemPrompt(getChatWindowSystemPrompt(language));
+            }
+        });
+
+        return () => {
+            unlisten.then((f: any) => f());
+        };
     }, []);
 
     // Save Sessions to LocalStorage
@@ -305,6 +391,12 @@ export default function AiChatWindow() {
         }
     };
 
+    const handleCopyAll = () => {
+        const fullTranscript = messages.map(m => `[${m.role.toUpperCase()}]\n${m.content}`).join('\n\n');
+        navigator.clipboard.writeText(fullTranscript);
+        alert("Conversation copied to clipboard!");
+    };
+
     return (
         <div className="h-screen w-screen flex bg-[#0A0A0C] text-white overflow-hidden">
             {/* Sidebar: History */}
@@ -353,30 +445,32 @@ export default function AiChatWindow() {
                              <Sparkles size={12} className="text-primary" /> Architect_AI
                         </span>
                     </div>
-                    <button onClick={() => setShowHistory(!showHistory)} className="text-gray-500 hover:text-white" title="Toggle History">
-                        <History size={14} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                         <button onClick={handleCopyAll} className="text-gray-500 hover:text-primary transition-colors flex items-center gap-1 text-[10px] font-bold" title="Copy Full Conversation">
+                            <Copy size={14} /> COPY ALL
+                        </button>
+                        <button onClick={() => setShowHistory(!showHistory)} className="text-gray-500 hover:text-white" title="Toggle History">
+                            <History size={14} />
+                        </button>
+                    </div>
                     {/* Native window controls are handled by OS/Tauri decorating usually, 
                         or we can add custom minimize/close if decoration is false */}
                 </div>
 
                 {/* Settings & Config Bar */}
                 <div className="px-6 py-2 bg-black/20 border-b border-white/5 flex gap-4 items-center shrink-0">
-                        <div className="flex items-center gap-2">
-                        <span className="text-[8px] font-black text-gray-600 uppercase tracking-widest">PROVIDER:</span>
-                        <select 
-                            value={currentProvider}
-                            onChange={(e) => {
-                                const p = e.target.value;
-                                setCurrentProvider(p);
-                                setCurrentModel(PROVIDER_MODELS[p][0]);
-                            }}
-                            className="bg-transparent text-[10px] font-black text-gray-300 uppercase tracking-widest focus:outline-none cursor-pointer appearance-none hover:text-primary transition-colors"
-                        >
-                            {availableProviders.map(p => <option key={p} value={p} className="bg-[#0A0A0C]">{p.toUpperCase()}</option>)}
-                        </select>
-                        </div>
-                        <div className="w-px h-3 bg-white/5 opacity-50"></div>
+                    <AiSettingsDropdown 
+                        currentProvider={currentProvider}
+                        setCurrentProvider={setCurrentProvider}
+                        currentModel={currentModel}
+                        setCurrentModel={setCurrentModel}
+                        outputLanguage={outputLanguage as any}
+                        setOutputLanguage={(l: any) => setOutputLanguage(l)}
+                        availableProviders={availableProviders}
+                        showAiSettings={showAiSettings}
+                        setShowAiSettings={setShowAiSettings}
+                    />
+                    <div className="w-px h-3 bg-white/5 opacity-50"></div>
                         
                         <div className="flex items-center gap-2">
                             <span className="text-[8px] font-black text-gray-600 uppercase tracking-widest">Hybrid:</span>
@@ -405,6 +499,19 @@ export default function AiChatWindow() {
                             {PROVIDER_MODELS[currentProvider]?.map(m => <option key={m} value={m} className="bg-[#0A0A0C]">{m}</option>)}
                         </select>
                         </div>
+                        
+                        {/* Token Counter */}
+                        <TokenCounter 
+                            messages={messages}
+                            model={currentModel}
+                            onNewChat={() => {
+                                if (confirm('確定要開始新對話嗎？這將清除目前的對話歷史。')) {
+                                    setMessages([{ role: 'assistant', content: st.aiChat.welcome }]);
+                                    setCurrentSessionId(null);
+                                }
+                            }}
+                        />
+                        
                         <div className="flex-1"></div>
                         <div className="flex items-center gap-2">
                             <button
@@ -445,7 +552,7 @@ export default function AiChatWindow() {
                                     <button 
                                         onClick={() => {
                                             if(confirm('Reset system prompt to default?')) {
-                                                setSystemPrompt(st.aiChat.defaultSystemPrompt);
+                                                setSystemPrompt(getChatWindowSystemPrompt(outputLanguage));
                                             }
                                         }}
                                         className="text-[10px] flex items-center gap-1 text-gray-500 hover:text-white px-2 py-1 rounded hover:bg-white/5 transition-colors"
@@ -504,10 +611,10 @@ export default function AiChatWindow() {
                             <div className={clsx(
                                 "max-w-[90%] px-4 py-3 rounded-2xl text-[13px] leading-relaxed shadow-sm relative group select-text selection:bg-primary/30 selection:text-white",
                                 msg.role === 'user' 
-                                    ? "bg-primary text-white font-bold rounded-tr-none" 
-                                    : "bg-[#16161A] text-gray-300 border border-white/5 rounded-tl-none font-medium"
+                                    ? "bg-primary text-white font-bold rounded-tr-none shadow-lg shadow-primary/20" 
+                                    : "bg-[#16161A] text-gray-300 border border-white/5 rounded-tl-none font-medium shadow-xl"
                             )}>
-                                <p className="whitespace-pre-wrap">{msg.content}</p>
+                                <MessageContent content={msg.content} />
                                 <button 
                                     onClick={() => handleCopyMessage(msg.content)}
                                     className={clsx(
@@ -549,6 +656,7 @@ export default function AiChatWindow() {
                             style={{ minHeight: '50px', maxHeight: '300px' }}
                         />
                         <button 
+                            id="chat-send-button"
                             onClick={handleSendMessage}
                             className="absolute bottom-2 right-2 w-10 h-10 bg-primary text-white rounded-lg shadow-lg flex items-center justify-center hover:bg-primary-hover active:scale-95 transition-all"
                         >

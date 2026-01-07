@@ -28,7 +28,8 @@ pub async fn execute_ai_chat(
 
     let endpoint = get_setting(db_state.clone(), "ai_endpoint".to_string()).unwrap_or(None);
 
-    if api_key.is_empty() && provider != "ollama" {
+    // For ollama and custom, API key is optional
+    if api_key.is_empty() && provider != "ollama" && provider != "custom" {
         return Err("API Key is missing".to_string());
     }
 
@@ -52,15 +53,58 @@ pub fn get_available_skills() -> Result<Vec<crate::utils::skills::SkillDefinitio
 
 // ============ Vibe Core Commands ============
 #[tauri::command]
-pub fn check_local_llm_connection() -> Result<bool, String> {
-    // Attempt a quick connection test to LM Studio (default: localhost:1234)
-    // We can use sync ping or just return true for now if we want to handle it in frontend
-    Ok(true)
+pub async fn verify_ai_connection(
+    db_state: State<'_, DbState>,
+    provider: String,
+    model: String,
+) -> Result<bool, String> {
+    let api_key = get_setting(db_state.clone(), format!("ai_api_key_{}", provider))
+        .unwrap_or_default()
+        .unwrap_or_default();
+
+    // For ollama and custom, API key is optional
+    if api_key.is_empty() && provider != "ollama" && provider != "custom" {
+        return Ok(false);
+    }
+
+    let endpoint = get_setting(db_state.clone(), "ai_endpoint".to_string()).unwrap_or(None);
+
+    let request = AiRequest {
+        provider,
+        api_key,
+        model,
+        messages: vec![ChatMessage {
+            role: "user".to_string(),
+            content: "hi".to_string(),
+        }],
+        endpoint,
+    };
+
+    let client = AiClient::new();
+    // Use a short timeout or just check if it returns anything
+    match client.execute(request).await {
+        Ok(_) => Ok(true),
+        Err(_) => Ok(false),
+    }
 }
 
 #[tauri::command]
-pub async fn refine_prompt(user_intent: String, context: String) -> Result<String, String> {
-    let client = crate::mcp::local_llm::LocalLlmClient::new(None, None);
+pub async fn check_local_llm_connection(db_state: State<'_, DbState>) -> Result<bool, String> {
+    let endpoint = get_setting(db_state.clone(), "ai_endpoint".to_string()).unwrap_or(None);
+
+    let client = crate::mcp::local_llm::LocalLlmClient::new(endpoint, None);
+    Ok(client.check_connection().await)
+}
+
+#[tauri::command]
+pub async fn refine_prompt(
+    db_state: State<'_, DbState>,
+    user_intent: String,
+    context: String,
+) -> Result<String, String> {
+    let endpoint = get_setting(db_state.clone(), "ai_endpoint".to_string()).unwrap_or(None);
+
+    let client = crate::mcp::local_llm::LocalLlmClient::new(endpoint, None);
 
     let system_prompt =
         "你是一個專業的 Prompt 工程師。請根據用戶意圖和上下文，生成一個優化過的、更具體的 Prompt。";

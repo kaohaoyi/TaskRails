@@ -21,13 +21,28 @@ export function parseProjectContext(content: string): ProjectContext {
     let descriptionLines: string[] = [];
     let promptLines: string[] = [];
 
+    // Status mapping supporting multiple languages
     const statusMap: Record<string, TaskStatus> = {
+        // English
         'TODO': 'todo',
-        '待辦事項': 'todo',
         'IN PROGRESS': 'doing',
-        '進行中': 'doing',
         'COMPLETED': 'done',
-        '已完成': 'done'
+        // Chinese (Traditional)
+        '待辦事項': 'todo',
+        '進行中': 'doing',
+        '已完成': 'done',
+        // Chinese (Simplified)
+        '待办事项': 'todo',
+        '进行中': 'doing',
+        // Japanese
+        '完了': 'done',
+        // French
+        'À FAIRE': 'todo',
+        'EN COURS': 'doing',
+        'TERMINÉ': 'done',
+        // Spanish
+        'EN PROGRESO': 'doing',
+        'COMPLETADO': 'done'
     };
 
     lines.forEach(line => {

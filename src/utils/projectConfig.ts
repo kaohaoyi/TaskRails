@@ -28,7 +28,7 @@ export interface GeneratedAgent {
 export interface GeneratedDiagram {
     id: string;
     name: string;
-    type: 'flowchart' | 'sequence' | 'class' | 'er' | 'state';
+    type: 'flowchart' | 'sequence' | 'class' | 'er' | 'state' | 'gantt';
     code: string;
 }
 
@@ -52,6 +52,83 @@ export interface CompletenessCheck {
         value?: string;
     }[];
     missingRequired: string[];
+}
+
+// 輔助函數：檢查團隊是否完整 (必須有 PM 和架構師)
+function checkTeamComplete(agents?: GeneratedAgent[]): boolean {
+    if (!agents || agents.length < 2) return false;
+    
+    const roles = agents.map(a => a.role.toLowerCase() + ' ' + a.name.toLowerCase());
+    const hasPM = roles.some(r => 
+        r.includes('pm') || r.includes('project manager') || r.includes('專案經理') || r.includes('經理')
+    );
+    const hasArchitect = roles.some(r => 
+        r.includes('architect') || r.includes('架構師') || r.includes('架構') || r.includes('planner') || r.includes('規劃')
+    );
+    
+    return hasPM && hasArchitect;
+}
+
+// 輔助函數：取得團隊狀態描述
+function getTeamStatusValue(agents?: GeneratedAgent[]): string {
+    if (!agents || agents.length === 0) return '未召集';
+    
+    const roles = agents.map(a => a.role.toLowerCase() + ' ' + a.name.toLowerCase());
+    const hasPM = roles.some(r => 
+        r.includes('pm') || r.includes('project manager') || r.includes('專案經理') || r.includes('經理')
+    );
+    const hasArchitect = roles.some(r => 
+        r.includes('architect') || r.includes('架構師') || r.includes('架構') || r.includes('planner') || r.includes('規劃')
+    );
+    
+    const missing: string[] = [];
+    if (!hasPM) missing.push('PM');
+    if (!hasArchitect) missing.push('架構師');
+    
+    if (missing.length > 0) {
+        return `${agents.length} 位專家 (缺少: ${missing.join(', ')})`;
+    }
+    return `${agents.length} 位專家 ✓`;
+}
+
+// 必要圖表類型
+const REQUIRED_DIAGRAM_TYPES = ['architecture', 'pert', 'sequence', 'gantt'];
+
+// 輔助函數：檢查圖表是否完整 (必須有 4 種類型)
+function checkDiagramsComplete(diagrams?: GeneratedDiagram[]): boolean {
+    if (!diagrams || diagrams.length < 4) return false;
+    
+    const diagramNames = diagrams.map(d => (d.name + ' ' + d.type + ' ' + d.id).toLowerCase());
+    
+    const hasArch = diagramNames.some(n => n.includes('arch') || n.includes('架構') || n.includes('系統'));
+    const hasPert = diagramNames.some(n => n.includes('pert') || n.includes('網路'));
+    const hasSequence = diagramNames.some(n => n.includes('sequence') || n.includes('時序') || n.includes('序列'));
+    const hasGantt = diagramNames.some(n => n.includes('gantt') || n.includes('甘特'));
+    
+    return hasArch && hasPert && hasSequence && hasGantt;
+}
+
+// 輔助函數：取得圖表狀態描述
+function getDiagramsStatusValue(diagrams?: GeneratedDiagram[]): string {
+    if (!diagrams || diagrams.length === 0) return '未生成';
+    
+    const diagramNames = diagrams.map(d => (d.name + ' ' + d.type + ' ' + d.id).toLowerCase());
+    
+    const hasArch = diagramNames.some(n => n.includes('arch') || n.includes('架構') || n.includes('系統'));
+    const hasPert = diagramNames.some(n => n.includes('pert') || n.includes('網路'));
+    const hasSequence = diagramNames.some(n => n.includes('sequence') || n.includes('時序') || n.includes('序列'));
+    const hasGantt = diagramNames.some(n => n.includes('gantt') || n.includes('甘特'));
+    
+    const missing: string[] = [];
+    if (!hasArch) missing.push('架構圖');
+    if (!hasPert) missing.push('PERT');
+    if (!hasSequence) missing.push('序列圖');
+    if (!hasGantt) missing.push('甘特圖');
+    
+    if (missing.length > 0) {
+        return `${diagrams.length} 張 (缺少: ${missing.join(', ')})`;
+    }
+    return `${diagrams.length} 張圖表 ✓`;
 }
 
 // 檢查專案配置完整性
@@ -98,6 +175,18 @@ export function checkProjectCompleteness(config: ProjectConfig): CompletenessChe
             required: true,
             completed: !!config.engineeringRules && config.engineeringRules.trim().length > 0,
             value: config.engineeringRules ? '已定義' : '未設定'
+        },
+        {
+            name: '召集團隊 (PM + 架構師)',
+            required: true,
+            completed: checkTeamComplete(config.generatedAgents),
+            value: getTeamStatusValue(config.generatedAgents)
+        },
+        {
+            name: '工作流 (4 張圖表)',
+            required: true,
+            completed: checkDiagramsComplete(config.generatedDiagrams),
+            value: getDiagramsStatusValue(config.generatedDiagrams)
         }
     ];
 
@@ -173,244 +262,61 @@ export function parseProjectConfigFromAI(aiResponse: string): Partial<ProjectCon
     if (jsonMatch) {
         try {
             const parsed = JSON.parse(jsonMatch[1]);
-            // 合併 JSON 解析結果（不覆蓋標記語法的結果）
-            return {
-                projectName: config.projectName || parsed.projectName || parsed.name,
-                projectGoal: config.projectGoal || parsed.projectGoal || parsed.goal || parsed.overview,
-                techStack: config.techStack?.length ? config.techStack : (parsed.techStack || parsed.tech || []),
-                features: config.features?.length ? config.features : (parsed.features || []),
-                dataStructure: config.dataStructure || parsed.dataStructure,
-                designSpec: config.designSpec || parsed.designSpec || parsed.design,
-                engineeringRules: config.engineeringRules || parsed.engineeringRules || parsed.rules,
-                generatedAgents: parsed.agents,
-                generatedDiagrams: parsed.diagrams,
-                generatedTasks: parsed.tasks
-            };
+            
+            // 補充或覆蓋 JSON 解析結果
+            if (parsed.projectName || parsed.name) config.projectName = config.projectName || parsed.projectName || parsed.name;
+            if (parsed.projectGoal || parsed.goal || parsed.overview) config.projectGoal = config.projectGoal || parsed.projectGoal || parsed.goal || parsed.overview;
+            
+            if (parsed.techStack?.length || parsed.tech?.length) {
+                config.techStack = config.techStack?.length ? config.techStack : (parsed.techStack || parsed.tech);
+            }
+            if (parsed.features?.length) {
+                config.features = config.features?.length ? config.features : parsed.features;
+            }
+            
+            if (parsed.dataStructure) config.dataStructure = config.dataStructure || parsed.dataStructure;
+            if (parsed.designSpec || parsed.design) config.designSpec = config.designSpec || parsed.designSpec || parsed.design;
+            if (parsed.engineeringRules || parsed.rules) config.engineeringRules = config.engineeringRules || parsed.engineeringRules || parsed.rules;
+            
+            // 處理 Agent 解析，確保所有必填欄位都有預設值
+            if (parsed.agents && Array.isArray(parsed.agents)) {
+                config.generatedAgents = parsed.agents.map((a: any) => ({
+                    id: a.id || `agent-${Math.random().toString(36).substr(2, 5)}`,
+                    name: a.name || '新成員',
+                    role: a.role || '專家顧問',
+                    skills: Array.isArray(a.skills) ? a.skills : [],
+                    systemPrompt: a.systemPrompt || `你是 ${a.name || '專家顧問'}，專精於 ${a.role || '目前專案需求'}。`
+                }));
+            }
+            
+            if (parsed.diagrams) config.generatedDiagrams = parsed.diagrams;
+            if (parsed.tasks) config.generatedTasks = parsed.tasks;
         } catch (e) {
             console.error('Failed to parse AI JSON response:', e);
         }
     }
 
-    // 3. 簡單文字解析備案（舊格式兼容）
+    // 3. 簡單文字解析備案（優化正則以支援不同格式）
     if (!config.projectName) {
-        const nameMatch = aiResponse.match(/專案名稱[：:]\s*(.+)/);
+        // 匹配 專案名稱、專案、名稱、Project Name、Project
+        const nameMatch = aiResponse.match(/(?:專案名稱|專案|名稱|Project Name|Project)[：:]\s*([^\n#/*]+)/i);
         if (nameMatch) config.projectName = nameMatch[1].trim();
     }
 
     if (!config.projectGoal) {
-        const goalMatch = aiResponse.match(/專案目標[：:]\s*(.+)/);
+        // 匹配 專案目標、目標、專案核心、Project Goal、Goal
+        const goalMatch = aiResponse.match(/(?:專案目標|目標|專案核心|Project Goal|Goal)[：:]\s*([^\n#/*]+)/i);
         if (goalMatch) config.projectGoal = goalMatch[1].trim();
     }
 
     return config;
 }
 
-// 語言選項
-export type Language = 'zh-TW' | 'en-US' | 'ja-JP';
+// 語言選項 (擴展支援更多語言)
+export type Language = 'zh-TW' | 'zh-CN' | 'en-US' | 'ja-JP' | 'es-ES' | 'fr-FR' | 'de-DE';
 
-// 生成專案設定 System Prompt (VIBE CODING 風格)
-// 生成專案設定 System Prompt (VIBE CODING 風格)
-export function getProjectSetupSystemPrompt(language: Language = 'zh-TW'): string {
-    const isChinese = language === 'zh-TW';
-    
-    // 語言指示
-    const languageInstruction = language === 'en-US' 
-        ? "Language: English (US). Communication must be in English unless clarifying specific user terms."
-        : language === 'ja-JP'
-            ? "Language: Japanese (Business Standard). Use polite and professional Japanese."
-            : "語言：繁體中文（台灣）。請使用台灣在地化術語。";
-
-    const mermaidRules = isChinese 
-        ? `## 🎨 Mermaid 圖表規則（極重要 - 必須遵守）
-
-**核心規則：所有包含中文的標籤都必須用雙引號包裹！**
-
-1. **節點標籤（最重要）**：中文標籤必須用雙引號
-   - ❌ 錯誤：\`A[麥克風輸入]\`
-   - ❌ 錯誤：\`B[數位訊號處理 (DSP)]\`
-   - ✅ 正確：\`A["麥克風輸入"]\`
-   - ✅ 正確：\`B["數位訊號處理"]\`
-
-2. **subgraph 名稱**：必須用雙引號
-   - ❌ 錯誤：\`subgraph 用戶端\`
-   - ✅ 正確：\`subgraph "用戶端"\`
-
-3. **連接標籤**：中文說明必須用雙引號
-   - ❌ 錯誤：\`A -->|發送資料| B\`
-   - ✅ 正確：\`A -->|"發送資料"| B\`
-
-4. **避免括號**：不要在標籤中使用英文括號，改用中文描述
-   - ❌ 錯誤：\`A["DSP (FFT)"]\`
-   - ✅ 正確：\`A["數位訊號處理模組"]\`
-
-### Mermaid 範例（正確格式）
-\\\`\\\`\\\`mermaid
-graph TD
-    subgraph "用戶端"
-        A["手機應用"]
-        B["網頁應用"]
-    end
-    subgraph "後端服務"
-        C["API 伺服器"]
-        D["資料庫"]
-    end
-    A -->|"API 請求"| C
-    B -->|"API 請求"| C
-    C -->|"讀寫"| D
-\\\`\\\`\\\``
-        : `## 🎨 Mermaid Diagram Rules (CRITICAL - MUST FOLLOW)
-
-**Core Rule: ALL node labels MUST be wrapped in double quotes!**
-
-1. **Node Labels (Most Important)**: ALL labels MUST use double quotes
-   - ❌ Wrong: \`A[Mobile App]\`
-   - ❌ Wrong: \`B[DSP (FFT/dB)]\`
-   - ✅ Correct: \`A["Mobile App"]\`
-   - ✅ Correct: \`B["DSP Module"]\`
-
-2. **Subgraph Names**: MUST use double quotes
-   - ❌ Wrong: \`subgraph Client Side\`
-   - ✅ Correct: \`subgraph "Client Side"\`
-
-3. **Link Labels**: MUST use double quotes
-   - ❌ Wrong: \`A -->|Send Data| B\`
-   - ✅ Correct: \`A -->|"Send Data"| B\`
-
-4. **Avoid Parentheses**: Do NOT use parentheses inside labels
-   - ❌ Wrong: \`A["DSP (FFT)"]\`
-   - ✅ Correct: \`A["DSP Module"]\`
-
-### Mermaid Example (Correct Format)
-\\\`\\\`\\\`mermaid
-graph TD
-    subgraph "Client Side"
-        A["Mobile App"]
-        B["Web App"]
-    end
-    subgraph "Backend Services"
-        C["API Server"]
-        D["Database"]
-    end
-    A -->|"API Request"| C
-    B -->|"API Request"| C
-    C -->|"Read Write"| D
-\\\`\\\`\\\``;
-
-    return `<identity>
-${languageInstruction}
-You are TaskRails' **Project Setup Architect**, a fusion of "AI System Architect + Product Planner + Cognitive Science Mentor".
-
-**Target Audience**: Idea-to-Product creators, indie developers, technical teams.
-**Work Mode**: Deep Thinking enabled for systematic requirements analysis and planning.
-**Goal**: Transform vague ideas into complete project plans, enabling AI adoption and development.
-</identity>
-
-<core_mission>
-Your task is to facilitate the "Idea -> Structure -> Solution -> Action" cognitive transformation:
-1.  **Requirement Understanding**: Identify explicit needs, implicit needs, and underlying intent.
-2.  **Structured Design**: Convert ideas into executable project configurations.
-3.  **Asset Generation**: Generate usable Agents, Diagrams, and Task Lists.
-</core_mission>
-
-<input_parsing>
-When a user describes "what I want to do", analyze it on three levels:
-1.  **Intent Recognition**: Explicit needs (features), Implicit needs (tech challenges), Underlying intent (learning/commercial).
-2.  **Keyword Extraction**: Core feature keywords, suitable tech stack, relevant open-source tools.
-</input_parsing>
-
-<output_protocol>
-### ⭐ Mark Syntax (MANDATORY)
-You **MUST** use the following specific tags to record confirmed configuration items. The system parses these automatically.
-**IMPORTANT**: The tag names (e.g., /專案名稱/) MUST be in Chinese exactly as shown, regardless of your output language.
-
-| Mark Syntax | Description | Example |
-|---|---|---|
-| /專案名稱/*xxx* | Project Name | /專案名稱/*SmartRecorder* |
-| /專案目標/*xxx* | Project Goal | /專案目標/*Cross-platform app for...* |
-| /技術棧/*a*, *b* | Tech Stack | /技術棧/*React Native*, *Whisper API* |
-| /功能清單/*a*, *b* | Features | /功能清單/*Recording*, *Transcript* |
-| /資料結構/*xxx* | Data Structure | /資料結構/*Users, Recordings Table* |
-| /設計規範/*xxx* | Design Spec | /設計規範/*Material UI, Dark Mode* |
-| /工程規則/*xxx* | Eng Rules | /工程規則/*ESLint, Jest* |
-
-### 📋 Output Structure (Four Modules)
-Always organize your response as follows:
-1.  **Understanding & Intent**: Summarize your understanding of the user's request.
-2.  **Confirmed Config**: List confirmed items using Mark Syntax (e.g., /專案名稱/*My App*).
-3.  **To Be Confirmed**: Ask for missing information (friendly & specific).
-4.  **Tech Path & Suggestions**: Provide tech stack recommendations or architecture advice.
-</output_protocol>
-
-<questioning_strategy>
-### ⚠️ Mandatory Items (Must ask until confirmed, Total 7 items)
-1.  **Project Name**: If not specified, infer one and ask.
-2.  **Project Goal**: If vague, ask "What problem does it solve? Who is it for?"
-3.  **Tech Stack**: If unspecified, recommend 2-3 options.
-4.  **Feature List**: If vague, ask for 3-5 core features.
-5.  **Data Structure**: Ask for core entities/models data structure.
-6.  **Design Spec**: Ask for UI/UX preferences (style, colors).
-7.  **Engineering Rules**: Ask for coding standards/testing requirements.
-
-### ⚠️ IMPORTANT: Only when ALL 7 items are confirmed, output the full JSON configuration.
-</questioning_strategy>
-
-<complete_output>
-## 🎉 Complete Configuration Output (After all 7 items confirmed)
-
-**Trigger Condition**: Only when the following 7 items are confirmed:
-1. Name, 2. Goal, 3. Tech Stack, 4. Features, 5. Data Structure, 6. Design Spec, 7. Eng Rules.
-
-Output the complete JSON configuration (including agents, diagrams, tasks):
-
-\`\`\`json
-{
-  "projectName": "Project Name",
-  "projectGoal": "Goal description (>20 words)",
-  "techStack": ["Tech1", "Tech2"],
-  "features": ["Feat1", "Feat2"],
-  "dataStructure": "Core data structure description",
-  "designSpec": "Design specifications",
-  "engineeringRules": "Engineering rules",
-  "agents": [
-    {
-      "id": "agent-frontend",
-      "name": "Frontend Dev",
-      "role": "Frontend Expert",
-      "skills": ["react", "typescript"],
-      "systemPrompt": "You are a React expert..."
-    }
-  ],
-  "diagrams": [
-    {
-      "id": "diagram-architecture",
-      "name": "System Architecture",
-      "type": "flowchart",
-      "code": "graph TD\\n..."
-    }
-  ],
-  "tasks": [
-    {
-      "id": "task-1",
-      "title": "Init Project",
-      "description": "Setup structure...",
-      "phase": "Phase 1: Foundation",
-      "priority": "P0"
-    }
-  ]
-}
-\`\`\`
-</complete_output>
-
-<interaction_style>
-- **Language**: Follow the "Language Instruction" at the top.
-- **Style**: Professional yet friendly. Like a Senior Engineer + Product Manager combo.
-- **Structure**: Clear structure, high information density.
-- **Marking**: Every reply MUST include at least one confirmed item with Mark Syntax if applicable.
-- **Phasing**: Break Tasks into reasonable Phases.
-${mermaidRules}
-</interaction_style>
-`;
-}
+// Re-export from centralized AI prompts module for backward compatibility
+export { getProjectSetupSystemPrompt } from './ai-prompts';
 
 // 預設配置
 export function getDefaultProjectConfig(): ProjectConfig {

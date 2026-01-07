@@ -5,8 +5,9 @@ import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor,
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import clsx from 'clsx';
-import { Plus, Search, LayoutGrid, Layers, Download, Upload, Bot, User, Trash2 } from 'lucide-react';
+import { Plus, Search, LayoutGrid, Layers, Download, Upload, Bot, User, Trash2, Activity, Play } from 'lucide-react';
 import { useTranslation } from '../../hooks/useTranslation';
+import { invoke } from '@tauri-apps/api/core';
 import TaskDetailModal, { TaskData, TaskStatus } from './TaskDetailModal';
 import TaskList from './TaskList';
 import { AgentRole } from './RoleSettingsPage';
@@ -524,10 +525,10 @@ function TaskCard({ task, onClick, onDelete, disabled }: TaskCardProps) {
             ref={setNodeRef} 
             style={style}
             className={clsx(
-                "relative bg-[#16161A] border rounded-xl p-4 transition-all duration-300 group overflow-hidden",
+                "relative bg-[#16161A] border rounded-xl p-4 transition-all duration-300 group overflow-hidden flex flex-col min-h-[160px]",
                 task.isReworked 
                     ? "border-orange-500/40 shadow-[inset_0_0_10px_rgba(249,115,22,0.05)]" 
-                    : "border-white/5 hover:border-primary/30",
+                    : (task.status === 'doing' ? "border-primary shadow-[0_0_20px_rgba(242,153,74,0.1)]" : "border-white/5 hover:border-primary/30"),
                 !disabled ? "cursor-pointer hover:shadow-[0_8px_20px_rgba(0,0,0,0.3)] hover:-translate-y-0.5" : "opacity-80 grayscale-[20%]"
             )}
         >
@@ -543,7 +544,7 @@ function TaskCard({ task, onClick, onDelete, disabled }: TaskCardProps) {
             />
             
             {/* Content Area */}
-            <div onClick={handleCardClick} className="relative z-10">
+            <div className="relative z-10 flex flex-col h-full pointer-events-none">
                 {/* Header Metadata */}
                 <div className="flex justify-between items-start mb-3">
                     <div className="flex flex-col">
@@ -567,7 +568,7 @@ function TaskCard({ task, onClick, onDelete, disabled }: TaskCardProps) {
                                 "w-6 h-6 rounded-lg flex items-center justify-center shadow-sm",
                                 (task.assignee.startsWith('ai_')) ? "bg-purple-500/10 text-purple-400 border border-purple-500/20" : 
                                 "bg-blue-500/10 text-blue-400 border border-blue-500/20"
-                            )} title={task.assignee}>
+                            )}>
                                  {task.assignee.startsWith('ai_') ? <Bot size={14} /> : <User size={14} />}
                             </div>
                         )}
@@ -575,41 +576,68 @@ function TaskCard({ task, onClick, onDelete, disabled }: TaskCardProps) {
                 </div>
 
                 {/* Task Title */}
-                <h3 className="text-gray-100 font-bold text-sm leading-tight mb-3 line-clamp-2 tracking-wide group-hover:text-white transition-colors">
+                <h3 onClick={handleCardClick} className="text-gray-100 font-bold text-sm leading-tight mb-3 line-clamp-2 tracking-wide group-hover:text-white transition-colors pointer-events-auto">
                     {task.title}
                 </h3>
                 
                 {/* Description Snippet */}
                 {task.description && (
-                    <div className="text-[11px] text-gray-500 font-medium leading-[1.6] line-clamp-2 mb-4 pr-2">
+                    <div className="text-[11px] text-gray-500 font-medium leading-[1.6] line-clamp-2 mb-4 pr-2 italic opacity-60">
                         {task.description.replace(/[#*`\-[\]x]/g, '').replace(/\n/g, ' ').trim()}
                     </div>
                 )}
 
                 {/* Bottom Stats & Progress */}
-                <div className="flex items-center justify-between mt-auto pt-3 border-t border-white/5">
-                    <div className="flex-1 max-w-[100px]">
-                        {progress !== null && (
-                            <div className="space-y-1.5">
-                                <div className="flex justify-between items-center text-[8px] uppercase font-black tracking-widest text-gray-600">
-                                    <span>PROGRESS</span>
-                                    <span>{Math.round(progress)}%</span>
-                                </div>
-                                <div className="h-1 bg-white/5 rounded-full overflow-hidden">
-                                    <div 
-                                        className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_5px_rgba(242,153,74,0.5)]" 
-                                        style={{ width: `${progress}%` }}
-                                    ></div>
-                                </div>
+                <div className="mt-auto pt-3 border-t border-white/5 flex flex-col gap-3">
+                    {progress !== null && (
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between items-center text-[8px] uppercase font-black tracking-widest text-gray-600">
+                                <span>COMPLETION</span>
+                                <span>{Math.round(progress)}%</span>
                             </div>
-                        )}
-                    </div>
-                    
-                    <div className="flex items-center gap-2 ml-4">
-                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black/40 rounded-full border border-white/5">
-                            <div className="w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_5px_rgba(242,153,74,0.8)]"></div>
-                            <span className="text-[9px] font-mono text-gray-400 tracking-tighter">NODE_S1</span>
+                            <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                                <div 
+                                    className="h-full bg-primary transition-all duration-500 ease-out shadow-[0_0_5px_rgba(242,153,74,0.5)]" 
+                                    style={{ width: `${progress}%` }}
+                                ></div>
+                            </div>
                         </div>
+                    )}
+
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-black/40 rounded-full border border-white/5">
+                            <Activity size={10} className={clsx("text-primary", task.status === 'doing' && "animate-pulse")} />
+                            <span className="text-[9px] font-mono text-gray-400 tracking-tighter">{task.status.toUpperCase()}</span>
+                        </div>
+                        
+                        {task.status === 'doing' && (
+                            <button 
+                                onPointerDown={(e) => e.stopPropagation()}
+                                onClick={async (e) => {
+                                    e.stopPropagation();
+                                    try {
+                                        const spec = await invoke<any>('get_project_spec');
+                                        const agentInfo = task.assignee ? ` Assigned Agent: ${task.assignee}` : '';
+                                        const message = `🚀 **LAUNCHING WORKFLOW**\n\n**Mission:** ${task.title}\n**ID:** ${task.id}\n${agentInfo}\n\n**Objective Detail:**\n${task.description}\n\n**Architectural Context:**\n${spec?.overview}\n\n**Engineering Rules:**\n${spec?.rules}\n\n--- \nAI, please proceed with implementation. Refine the plan if needed.`;
+                                        
+                                        // 1. Internal Chat Injection
+                                        await invoke('open_chat_window');
+                                        localStorage.setItem('taskrails_pending_prompt', message);
+
+                                        // 2. Workspace File Sync (The Bridge)
+                                        const fileContent = `# 🚀 ACTIVE MISSION: ${task.id}\n\n## ${task.title}\n\n${message}\n\n---\n*Generated by TaskRails on ${new Date().toLocaleString()}*`;
+                                        await invoke('save_md_file', { 
+                                            content: fileContent, 
+                                            filename: 'ACTIVE_TASK.md' 
+                                        });
+
+                                    } catch (err) { console.error(err); }
+                                }}
+                                className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-[9px] font-black uppercase tracking-widest rounded-lg shadow-lg hover:bg-primary-hover transition-all group/btn active:scale-95"
+                            >
+                                <Play size={10} fill="white" className="group-hover/btn:scale-125 transition-transform" /> LAUNCH_IDE
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -618,10 +646,10 @@ function TaskCard({ task, onClick, onDelete, disabled }: TaskCardProps) {
                     <button 
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                        className="absolute bottom-2 right-2 p-1.5 opacity-50 hover:opacity-100 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded-md transition-all z-20"
-                        title="刪除任務"
+                        className="absolute top-2 right-2 p-1 opacity-0 group-hover:opacity-40 text-gray-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-all z-20 pointer-events-auto"
+                        title="Delete"
                     >
-                        <Trash2 size={12} />
+                        <Trash2 size={10} />
                     </button>
                 )}
             </div>

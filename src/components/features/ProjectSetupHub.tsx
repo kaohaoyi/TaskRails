@@ -9,6 +9,7 @@ import { AiSettingsDropdown } from './project-setup/AiSettingsDropdown';
 import { ChatInterface } from './project-setup/ChatInterface';
 import { ConfigPanel } from './project-setup/ConfigPanel';
 import { AgentEditModal } from './project-setup/AgentEditModal';
+import { TokenCounter } from '../ui/TokenCounter';
 import { 
     ProjectConfig, 
     CompletenessCheck,
@@ -65,7 +66,8 @@ export default function ProjectSetupHub({ onDeployComplete }: ProjectSetupHubPro
         handleEditAgent,
         handleSaveAgent,
         handleDeleteAgent,
-        handleAddAgent
+        handleAddAgent,
+        handleInjectTasks
     } = useProjectActions({ 
         projectConfig, setProjectConfig, 
         messages, setMessages, 
@@ -96,135 +98,20 @@ export default function ProjectSetupHub({ onDeployComplete }: ProjectSetupHubPro
                 </div>
                 
                 <div className="flex items-center gap-2">
-                    {/* Project File Menu */}
-                    <div className="relative">
-                        <button 
-                            onClick={() => setShowProjectMenu(!showProjectMenu)}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition-colors"
-                        >
-                            <FolderOpen size={12} /> 專案
-                            <ChevronDown size={10} />
-                        </button>
-                        
-                        {showProjectMenu && (
-                            <div className="absolute top-full left-0 mt-1 w-72 bg-[#252526] border border-[#3C3C3C] rounded shadow-xl z-50 py-1 text-[13px]">
-                                {/* New Project */}
-                                <button
-                                    onClick={() => { handleNewProject(); setShowProjectMenu(false); }}
-                                    className="w-full px-3 py-1.5 text-left text-[#CCCCCC] hover:bg-[#094771] flex items-center justify-between group"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <FilePlus size={14} className="text-[#858585] group-hover:text-white" />
-                                        New Project
-                                    </span>
-                                    <span className="text-[11px] text-[#858585]">Ctrl+N</span>
-                                </button>
-                                
-                                {/* Separator */}
-                                <div className="border-t border-[#3C3C3C] my-1" />
-                                
-                                {/* Open Folder */}
-                                <button
-                                    onClick={() => { handleSelectWorkspace(); setShowProjectMenu(false); }}
-                                    className="w-full px-3 py-1.5 text-left text-[#CCCCCC] hover:bg-[#094771] flex items-center justify-between group"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <FolderOpen size={14} className="text-[#858585] group-hover:text-white" />
-                                        Open Folder...
-                                    </span>
-                                    <span className="text-[11px] text-[#858585]">Ctrl+K Ctrl+O</span>
-                                </button>
-                                
-                                {/* Create New Folder */}
-                                <button
-                                    onClick={() => { handleCreateWorkspace(); setShowProjectMenu(false); }}
-                                    className="w-full px-3 py-1.5 text-left text-[#CCCCCC] hover:bg-[#094771] flex items-center justify-between group"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <FilePlus size={14} className="text-[#858585] group-hover:text-white" />
-                                        Create New Folder...
-                                    </span>
-                                </button>
-                                
-                                {/* Current Workspace */}
-                                {workspacePath && (
-                                    <>
-                                        <div className="border-t border-[#3C3C3C] my-1" />
-                                        <div className="px-3 py-1.5 text-[11px] text-[#858585]">
-                                            <span className="text-[#569CD6]">Active:</span> {workspacePath.split(/[/\\]/).pop()}
-                                        </div>
-                                    </>
-                                )}
-                                
-                                {/* Separator */}
-                                <div className="border-t border-[#3C3C3C] my-1" />
-                                
-                                {/* Save */}
-                                <button
-                                    onClick={() => { handleSaveProject(); setShowProjectMenu(false); }}
-                                    className="w-full px-3 py-1.5 text-left text-[#CCCCCC] hover:bg-[#094771] flex items-center justify-between group"
-                                >
-                                    <span className="flex items-center gap-2">
-                                        <Save size={14} className="text-[#858585] group-hover:text-white" />
-                                        Save
-                                    </span>
-                                    <span className="text-[11px] text-[#858585]">Ctrl+S</span>
-                                </button>
-                                
-                                {/* Recent Projects */}
-                                {savedProjects.length > 0 && (
-                                    <>
-                                        <div className="border-t border-[#3C3C3C] my-1" />
-                                        <div className="px-3 py-1 text-[11px] text-[#858585]">Open Recent</div>
-                                        {savedProjects.slice(0, 5).map((proj, i) => (
-                                            <div key={i} className="flex items-center group">
-                                                <button
-                                                    onClick={() => {
-                                                        handleLoadSavedProject(proj.path);
-                                                        setShowProjectMenu(false);
-                                                    }}
-                                                    className="flex-1 px-3 py-1.5 text-left text-[#CCCCCC] hover:bg-[#094771] truncate"
-                                                >
-                                                    <span className="text-[#858585]">{i + 1}.</span> {proj.name}
-                                                </button>
-                                                <button
-                                                    onClick={(e) => handleDeleteSavedProject(proj.path, e)}
-                                                    className="px-2 py-1 opacity-0 group-hover:opacity-100 text-[#858585] hover:text-red-500 transition-opacity"
-                                                    title="Remove from Recent"
-                                                >
-                                                    <Trash2 size={12} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                    
-                    {/* Transfer Context */}
+                    {/* Simplified Transfer/Export - Now viewed as 'Genesis Context' */}
                     <button 
                         onClick={async () => {
                             try {
                                 const context = messages.map(m => `## ${m.role === 'user' ? 'User' : 'Assistant'}\n${m.content}`).join('\n\n');
-                                const fileContent = `# AI Chat Context Transfer\nTimestamp: ${new Date().toISOString()}\n\n${context}`;
-                                
-                                await invoke('update_memory', {
-                                    workspace: '.',
-                                    name: 'active_context',
-                                    content: fileContent
-                                });
-                                
-                                alert("Context transferred to @active_context.md. Your AI IDE Agent can now read this.");
-                            } catch (e) {
-                                console.error(e);
-                                alert("Failed to transfer context");
-                            }
+                                const fileContent = `# Project Genesis Context\nTimestamp: ${new Date().toISOString()}\n\n${context}`;
+                                await invoke('update_memory', { workspace: '.', name: 'genesis_context', content: fileContent });
+                                alert("Genesis context exported to @genesis_context.md. Your IDE Agent can now read the setup history.");
+                            } catch (e) { console.error(e); }
                         }}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 hover:bg-primary/20 rounded-lg text-[10px] font-bold text-primary hover:text-white transition-colors border border-primary/20"
-                        title="Transfer context to IDE"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition-colors border border-white/5"
+                        title="Export setup history for IDE knowledge"
                     >
-                        <Bot size={12} /> Transfer to IDE
+                        <Bot size={12} /> Export History
                     </button>
 
                     <AiSettingsDropdown 
@@ -237,6 +124,18 @@ export default function ProjectSetupHub({ onDeployComplete }: ProjectSetupHubPro
                         availableProviders={availableProviders}
                         showAiSettings={showAiSettings}
                         setShowAiSettings={setShowAiSettings}
+                    />
+                    
+                    {/* Token Counter with New Chat */}
+                    <TokenCounter 
+                        messages={messages.map(m => ({ role: m.role, content: m.content }))}
+                        model={currentModel}
+                        onNewChat={() => {
+                            if (confirm('確定要開始新對話嗎？這將清除目前的對話歷史。')) {
+                                setMessages([]);
+                                setProjectConfig(getDefaultProjectConfig());
+                            }
+                        }}
                     />
                     
                     <button 
@@ -276,6 +175,7 @@ export default function ProjectSetupHub({ onDeployComplete }: ProjectSetupHubPro
                     onDeleteAgent={handleDeleteAgent}
                     isDeploying={isDeploying}
                     onDeploy={() => handleDeployToAll(onDeployComplete)}
+                    onInjectTasks={handleInjectTasks}
                 />
             </div>
             

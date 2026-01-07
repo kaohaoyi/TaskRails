@@ -3,6 +3,7 @@ import { Network, Save, Layers, AlertCircle, Maximize2, X, ChevronLeft, ChevronR
 import mermaid from 'mermaid';
 import clsx from 'clsx';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 // Initialize Mermaid globally
 mermaid.initialize({
@@ -139,6 +140,20 @@ export default function Planner() {
                 console.error("Failed to load diagrams:", e);
             }
         }
+
+        // Listen for diagrams distributed from ProjectAnalyzer
+        const unlisten = listen('diagrams-distributed', (event: any) => {
+            const { diagrams: newDiagrams } = event.payload;
+            if (Array.isArray(newDiagrams) && newDiagrams.length > 0) {
+                console.log('[Planner] Received distributed diagrams:', newDiagrams);
+                setDiagrams(newDiagrams as DiagramData[]);
+                setActiveTabIndex(0);
+            }
+        });
+
+        return () => {
+            unlisten.then(f => f());
+        };
     }, []);
 
     // 當前編輯的圖表

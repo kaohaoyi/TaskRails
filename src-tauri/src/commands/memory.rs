@@ -15,3 +15,7 @@ pub fn get_memory(
 pub fn update_memory(workspace: String, name: String, content: String) -> Result<(), String> {
     crate::memory_bank::write_memory(&workspace, &name, &content)
 }
+#[tauri::command]
+pub fn delete_memory(workspace: String, name: String) -> Result<(), String> {
+    crate::memory_bank::delete_memory(&workspace, &name)
+}

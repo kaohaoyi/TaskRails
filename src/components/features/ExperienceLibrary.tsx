@@ -186,13 +186,38 @@ export default function ExperienceLibrary() {
                             <p className="text-sm text-gray-300 leading-relaxed font-medium mb-4">{exp.content}</p>
                             
                             {exp.solution && (
-                                <div className="bg-[#0A0A0C] rounded-lg p-4 font-mono text-xs text-gray-400 overflow-x-auto border-l-2 border-primary/20 group-hover:border-primary transition-colors">
-                                    <pre>{exp.solution}</pre>
+                                <div className="relative group/snippet mt-4">
+                                    <div className="bg-[#0A0A0C] rounded-lg p-5 font-mono text-xs text-gray-400 overflow-x-auto border-l-2 border-primary/20 group-hover:border-primary transition-colors pr-12">
+                                        <pre>{exp.solution}</pre>
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(exp.solution || '');
+                                            alert("Pattern copied! You can now paste this into your project specifications.");
+                                        }}
+                                        className="absolute right-3 top-3 p-2 bg-white/5 hover:bg-primary text-gray-500 hover:text-white rounded-lg transition-all shadow-xl"
+                                        title="Copy to Clipboard"
+                                    >
+                                        <Save size={14} />
+                                    </button>
                                 </div>
                             )}
 
-                            <div className="mt-4 flex items-center justify-end gap-2 text-[10px] font-bold text-gray-600 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Clock size={12} /> Sync: Just now
+                            <div className="mt-6 flex items-center justify-between">
+                                <button 
+                                    onClick={() => {
+                                        const text = `Pattern: ${exp.content}\nSolution: ${exp.solution || 'N/A'}`;
+                                        navigator.clipboard.writeText(text);
+                                        alert("Full experience pattern copied to clipboard.");
+                                    }}
+                                    className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-gray-500 hover:text-white transition-all flex items-center gap-2"
+                                >
+                                    <Clock size={12} /> Inject to Blueprint
+                                </button>
+                                
+                                <div className="flex items-center gap-2 text-[10px] font-bold text-gray-800 uppercase tracking-widest transition-opacity">
+                                    <Clock size={12} /> Sync: Just now
+                                </div>
                             </div>
                         </div>
                     ))}

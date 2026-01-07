@@ -77,9 +77,21 @@ impl AiClient {
 
     async fn execute_openai_compatible(&self, req: AiRequest) -> Result<String, String> {
         let url = if req.provider == "custom" {
-            req.endpoint
+            // 對於 custom provider，自動處理 endpoint
+            // 如果用戶只提供了基礎 URL（如 http://192.168.0.144:1234），
+            // 則自動加上 /v1/chat/completions
+            let base = req
+                .endpoint
                 .clone()
-                .unwrap_or_else(|| "https://api.openai.com/v1/chat/completions".to_string())
+                .unwrap_or_else(|| "http://localhost:1234".to_string());
+
+            if base.contains("/v1/chat/completions") || base.contains("/chat/completions") {
+                base
+            } else {
+                // 移除尾部斜線，然後加上路徑
+                let trimmed = base.trim_end_matches('/');
+                format!("{}/v1/chat/completions", trimmed)
+            }
         } else {
             match req.provider.as_str() {
                 "openai" => "https://api.openai.com/v1/chat/completions".to_string(),
@@ -95,11 +107,14 @@ impl AiClient {
             }
         };
 
+        // 增加 max_tokens 以支援更長的回應（特別是本地模型）
+        let is_local = req.provider == "ollama" || req.provider == "custom";
+
         let body = OpenAICompatibleRequest {
             model: req.model,
             messages: req.messages,
             temperature: Some(0.7),
-            max_tokens: Some(4096),
+            max_tokens: Some(if is_local { 16384 } else { 8192 }),
         };
 
         let response = self

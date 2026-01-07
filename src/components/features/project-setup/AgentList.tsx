@@ -27,8 +27,11 @@ export function AgentList({ agents, onAdd, onEdit, onDelete }: AgentListProps) {
                 <div className="space-y-1">
                     {agents.map((agent, i) => (
                         <div key={i} className="px-3 py-2 bg-white/5 rounded-lg group hover:bg-white/10 transition-colors">
-                            <div className="flex items-center justify-between mb-1">
-                                <span className="text-[11px] font-bold text-gray-200 select-text">{agent.name}</span>
+                            <div className="flex items-center justify-between mb-0.5">
+                                <div className="flex flex-col">
+                                    <span className="text-[11px] font-bold text-gray-200 select-text">{agent.name}</span>
+                                    <span className="text-[8px] text-gray-500 uppercase font-black tracking-widest">{agent.role}</span>
+                                </div>
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <button 
                                         onClick={() => onEdit(i)}

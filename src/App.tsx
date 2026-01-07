@@ -20,13 +20,16 @@ import ProjectSetupPopup from './components/features/ProjectSetupPopup'; // v2.7
 import AiIdeControlCenter from './components/features/AiIdeControlCenter'; // v1.1 IDE Control
 import ProjectAnalyzer from './components/features/ProjectAnalyzer'; // v1.1 Project Analysis
 import FileExplorer from './components/features/FileExplorer'; // v1.1 Files
+import TaskQueuePanel from './components/features/TaskQueuePanel'; // v3.0 Task Queue
 import { useTranslation } from "./hooks/useTranslation";
 import Toast, { ToastType } from "./components/common/Toast";
 import * as dbApi from "./api/db";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import clsx from "clsx";
 import { generateProjectContext } from "./utils/mdExport";
 import { parseProjectContext } from "./utils/mdImport";
+import { getTaskInjectionSystemPrompt, getCurrentOutputLanguage } from "./utils/ai-prompts";
 
 interface ToastItem {
     id: string;
@@ -47,6 +50,7 @@ function App() {
   const [isAirlockOpen, setAirlockOpen] = useState(false);
   const [currentView, setCurrentView] = useState('kanban');
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [projectKey, setProjectKey] = useState<number>(0);
 
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
       const id = Math.random().toString(36).substring(2, 9);
@@ -65,32 +69,33 @@ function App() {
   // Load data from database on mount
   const loadData = useCallback(async () => {
     console.log('[App] Starting data load...');
-    // Clear existing data to avoid "old data" showing up during reload
+    // 1. Explicitly Reset State to prevent data leakage from previous project
     setTasks([]);
     setRoles([]);
     
     try {
+      // 2. Load basic project data from Database
       const [dbTasks, dbRoles] = await Promise.all([
         dbApi.fetchTasks(),
         dbApi.fetchRoles()
       ]);
       
-      setTasks(dbTasks);
-      setRoles(dbRoles);
+      // 3. Check for Workspace Sync File (.taskrails context)
+      const workspaceContent = await invoke<string | null>('read_workspace_file');
+      
+      if (workspaceContent) {
+        const { tasks: wsTasks, roles: wsRoles } = parseProjectContext(workspaceContent);
+        // Priority: Use workspace file if it contains newer or valid state
+        if (wsTasks.length > 0) setTasks(wsTasks);
+        else setTasks(dbTasks);
 
-      // Attempt to read from workspace .taskrails for any updates if DB is empty
-      if (dbTasks.length === 0) {
-        const workspaceContent = await invoke<string | null>('read_workspace_file');
-        if (workspaceContent) {
-           const { tasks: wsTasks, roles: wsRoles } = parseProjectContext(workspaceContent);
-           if (wsTasks.length > 0) {
-             console.log('[App] DB is empty, importing from workspace .taskrails');
-             setTasks(wsTasks);
-             setRoles(wsRoles);
-             for (const t of wsTasks) await dbApi.createTask(t);
-             for (const r of wsRoles) await dbApi.createRole(r);
-           }
-        }
+        if (wsRoles.length > 0) setRoles(wsRoles);
+        else setRoles(dbRoles);
+      } else {
+        // No workspace file -> This is a fresh project folder within the current DB context
+        // If we strictly want to reset:
+        setTasks([]);
+        setRoles([]);
       }
     } catch (err) {
       console.error('[App] Failed to load data:', err);
@@ -102,6 +107,7 @@ function App() {
 
     const unlisten = listen('project-switched', () => {
       console.log('[App] Project switched event received. Refreshing global data...');
+      setProjectKey(prev => prev + 1); // Force state reset of all components
       loadData();
     });
 
@@ -203,10 +209,10 @@ function App() {
     try {
       await dbApi.deleteAllTasks();
       setTasks([]);
-      showToast('所有任務已刪除', 'success');
+      showToast(t.app.toast.allTasksDeleted, 'success');
     } catch (err) {
       console.error('[App] Failed to delete all tasks:', err);
-      showToast('刪除失敗', 'error');
+      showToast(t.app.toast.deleteFailed, 'error');
     }
   }, [showToast]);
 
@@ -239,70 +245,83 @@ function App() {
     }
   }, []);
 
-  const handleInjectTasksFromSpec = useCallback(async (featuresMarkdown: string) => {
+  const handleInjectTasksFromSpec = useCallback(async (specData: any) => {
+    showToast(t.app.toast.aiAnalyzing, 'info');
     try {
-      const lines = featuresMarkdown.split('\n');
-      const injectedTasks: Task[] = [];
-      let currentPhase = 'PHASE 1';
+      const prompt = `請根據以下專案說明書，執行「專員召喚」與「任務深度拆解」：
+      
+      專案名稱: ${specData.name}
+      技術棧: ${specData.techStack}
+      功能需求: ${specData.features}
+      規則: ${specData.rules}
 
-      for (const line of lines) {
-        // Match Phase headers: ## Phase 1
-        const phaseMatch = line.match(/^##\s*(Phase\s*\d+)/i);
-        if (phaseMatch) {
-            currentPhase = phaseMatch[1].toUpperCase();
-            continue;
-        }
+      任務要求：
+      1. **召喚 AI 專員**：根據專案需求，定義 3-4 個專業角色（例如：Lead Architect, Frontend Engineer, Backend Dev）。
+      2. **任務深度拆解**：將功能清單轉化為可執行的任務。每個任務必須包含：
+         - 詳細的「實作內容 (Implementation Details)」：具體要寫什麼代碼、調用什麼 API。
+         - 原子化步驟 (Detailed Steps)。
+         - 指派給適合的專員 (Assignee)。
+      
+      請返回 JSON 格式：
+      {
+        "roles": [{ "name": "專員名稱", "role": "職位", "description": "職責描述" }],
+        "tasks": [{ "title": "任務標題", "description": "實作內容與步驟", "assignee": "專員職位", "priority": "1-3", "phase": "階段名稱" }]
+      }`;
 
-        // Match task items: "1. Task Name" or "- Task Name"
-        const taskMatch = line.match(/^(\d+\.|-)\s*(.+)/);
-        if (taskMatch) {
-            let title = taskMatch[2].trim();
-            let assignee: string | undefined;
+      const aiResponse = await invoke<string>('execute_ai_chat', {
+          messages: [
+              { role: 'system', content: getTaskInjectionSystemPrompt(getCurrentOutputLanguage()) },
+              { role: 'user', content: prompt }
+          ]
+      });
 
-            // Extract @Assignee if present
-            const assigneeMatch = title.match(/@(\w+)/);
-            if (assigneeMatch) {
-                assignee = assigneeMatch[1]; // e.g. "ai_coder"
-                // Check if it's a known agent prefix, if not maybe prefix it? 
-                // User input might be "@codegen", we want "ai_codegen"? 
-                // Let's assume user/system writes the correct ID or we map it later.
-                // For now, keep as is.
-                title = title.replace(assigneeMatch[0], '').trim();
-            }
+      const jsonMatch = aiResponse.match(/```json\s*([\s\S]*?)\s*```/) || aiResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+          const { roles: aiRoles, tasks: aiTasks } = JSON.parse(jsonMatch[1] || jsonMatch[0]);
 
-            if (title) {
-                const newTask: Task = {
-                    id: `TSK-${Math.floor(Math.random() * 10000)}`,
-                    title,
-                    status: 'todo',
-                    phase: currentPhase,
-                    priority: '3',
-                    tag: 'Spec',
-                    assignee: assignee, // Set parsed assignee
-                    isReworked: false,
-                    description: `來自專案說明書的任務。\n階段：${currentPhase}`
-                };
-                await dbApi.createTask(newTask);
-                injectedTasks.push(newTask);
-            }
-        }
-      }
+          // 1. Inject Roles
+          const newRoles: AgentRole[] = aiRoles.map((r: any) => ({
+              id: r.role.toLowerCase().replace(/\s+/g, '_'),
+              name: r.name,
+              role: r.role,
+              description: r.description,
+              isDefault: false
+          }));
 
-      if (injectedTasks.length > 0) {
-        setTasks(prev => [...prev, ...injectedTasks]);
-        showToast(`成功導入 ${injectedTasks.length} 個任務至看板`, 'success');
-      } else {
-        showToast('未發現有效任務項目', 'info');
+          for (const role of newRoles) {
+              await dbApi.createRole(role);
+          }
+          setRoles(prev => [...prev, ...newRoles]);
+
+          // 2. Inject Tasks
+          const newTasks: Task[] = aiTasks.map((t: any) => ({
+              id: `TSK-${Math.floor(Math.random() * 10000)}`,
+              title: t.title,
+              status: 'todo',
+              phase: t.phase || 'PHASE 1',
+              priority: t.priority || '2',
+              tag: 'Spec',
+              assignee: t.assignee,
+              description: t.description,
+              isReworked: false
+          }));
+
+          for (const task of newTasks) {
+              await dbApi.createTask(task);
+          }
+          setTasks(prev => [...prev, ...newTasks]);
+
+          showToast(t.app.toast.aiInjectSuccess.replace('{rolesCount}', String(newRoles.length)).replace('{tasksCount}', String(newTasks.length)), 'success');
       }
     } catch (err) {
-      console.error('[App] Failed to inject tasks:', err);
-      showToast('導入失敗', 'error');
+      console.error('[App] Failed to inject from spec:', err);
+      showToast(t.app.toast.aiInjectFailed, 'error');
     }
   }, [showToast]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background-dark text-gray-300 font-display">
-      <Titlebar />
+      <Titlebar onNavigate={setCurrentView} />
       
       <div className="flex flex-1 pt-8"> {/* pt-8 to account for absolute/fixed Titlebar */}
         <Sidebar 
@@ -325,50 +344,77 @@ function App() {
                     <div className="mb-6">
                         <h1 data-tauri-drag-region className="text-3xl font-bold uppercase tracking-tight text-white flex items-center gap-3 cursor-default select-none">
                             <span className="w-2 h-8 bg-primary block pointer-events-none"></span>
-                            任務看板
+                            {t.app.kanbanTitle}
                         </h1>
                         <p className="text-gray-500 mt-1 text-sm pl-5">
-                            專案任務管理與進度追蹤
+                            {t.app.kanbanSubtitle}
                         </p>
                     </div>
                 )}
                 
-                <div className="flex-1 min-h-0">
-                    {currentView === 'manual' && (
+                <div key={projectKey} className="flex-1 min-h-0 relative">
+                    {/* Persistent Page Containers */}
+                    <div className={clsx("h-full", currentView !== 'manual' && "hidden")}>
                         <InstructionPage />
-                    )}
-                    {currentView === 'specs' && (
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'specs' && "hidden")}>
                         <SpecPage 
                             onInjectTasks={handleInjectTasksFromSpec}
+                            onNavigate={setCurrentView}
                             onShowToast={showToast}
                         />
-                    )}
-                    {currentView === 'kanban' && (
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'kanban' && "hidden")}>
                         <KanbanBoard 
                             availableRoles={allRoles} 
                             tasks={tasks} 
                             onTasksChange={handleTasksChange} 
                             onDeleteAllTasks={handleDeleteAllTasks}
                         />
-                    )}
-                    {currentView === 'settings' && <SettingsPage />}
-                    {currentView === 'ops' && <OpsDashboard />}
-                    {currentView === 'roleSettings' && (
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'settings' && "hidden")}>
+                        <SettingsPage />
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'ops' && "hidden")}>
+                        <OpsDashboard />
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'roleSettings' && "hidden")}>
                         <RoleSettingsPage 
                             roles={customRoles} 
                             onAddRole={handleAddRole} 
                             onDeleteRole={handleDeleteRole} 
                         />
-                    )}
-                    {currentView === 'agent-lab' && <AgentLab />}
-                    {currentView === 'knowledge' && <ExperienceLibrary />}
-                    {currentView === 'memory-bank' && <MemoryBankViewer />}
-                    {currentView === 'planner' && <Planner />}
-                    {currentView === 'project-setup' && <ProjectSetupHub />}
-                    {currentView === 'engineering' && <EngineeringPage tasks={tasks} onShowToast={showToast} />}
-                    {currentView === 'ai-ide-control' && <AiIdeControlCenter />}
-                    {currentView === 'project-analyzer' && <ProjectAnalyzer />}
-                    {currentView === 'file-explorer' && <FileExplorer />}
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'agent-lab' && "hidden")}>
+                        <AgentLab />
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'knowledge' && "hidden")}>
+                        <ExperienceLibrary />
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'memory-bank' && "hidden")}>
+                        <MemoryBankViewer />
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'planner' && "hidden")}>
+                        <Planner />
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'project-setup' && "hidden")}>
+                        <ProjectSetupHub />
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'engineering' && "hidden")}>
+                        <EngineeringPage tasks={tasks} onShowToast={showToast} />
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'ai-ide-control' && "hidden")}>
+                        <AiIdeControlCenter />
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'project-analyzer' && "hidden")}>
+                        <ProjectAnalyzer />
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'file-explorer' && "hidden")}>
+                        <FileExplorer />
+                    </div>
+                    <div className={clsx("h-full", currentView !== 'task-queue' && "hidden")}>
+                        <TaskQueuePanel />
+                    </div>
                 </div>
             </div>
 

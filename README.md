@@ -108,6 +108,18 @@ npm run tauri build
 
 ---
 
+## 🏗️ 技術細節與架構
+
+關於 TaskRails 的詳細系統架構、技術堆疊與 API 指令，請參閱：
+👉 **[SYSTEM_SPEC.md](./docs/SYSTEM_SPEC.md)**
+
+## 📖 使用指南
+
+初次使用或設定新專案，請參閱：
+👉 **[USER_GUIDE.md](./docs/USER_GUIDE.md)**
+
+---
+
 ## 📄 授權 (License)
 
-MIT License © 2024 Antigravity Agent
+MIT License © 2026 Antigravity Agent

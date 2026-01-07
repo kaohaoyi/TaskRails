@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 import { Message } from '../../../../types/project-setup';
 import { 
     ProjectConfig, 
@@ -41,46 +42,21 @@ export function useProjectChat({ projectConfig, setProjectConfig }: UseProjectCh
                 for (const p of Object.keys(PROVIDER_MODELS)) {
                     if (p === 'ollama' || p === 'custom') continue;
                     try {
-                        // 嘗試從 Tauri 讀取
-                        let key: string | null = null;
-                        try {
-                            key = await invoke<string | null>('get_setting', { key: `ai_api_key_${p}` });
-                        } catch {
-                            // Tauri 不可用，從 localStorage 讀取
-                        }
-                        
-                        // Fallback 到 localStorage
-                        if (!key) {
-                            key = localStorage.getItem(`taskrails_api_key_${p}`);
-                        }
-                        
-                        if (key && key.trim().length > 0) {
-                            available.push(p);
-                        }
-                    } catch (e) {
-                         // Key not found
-                    }
+                        let key: string | null = await invoke<string | null>('get_setting', { key: `ai_api_key_${p}` }).catch(() => null);
+                        if (!key) key = localStorage.getItem(`taskrails_api_key_${p}`);
+                        if (key && key.trim().length > 0) available.push(p);
+                    } catch (e) {}
                 }
                 setAvailableProviders(available);
                 
-                // 嘗試從 Tauri 或 localStorage 讀取 provider/model
-                let provider: string | null = null;
-                let model: string | null = null;
-                try {
-                    provider = await invoke<string | null>('get_setting', { key: 'ai_provider' });
-                    model = await invoke<string | null>('get_setting', { key: 'ai_model' });
-                } catch {
-                    // Fallback
-                }
+                let provider = await invoke<string | null>('get_setting', { key: 'ai_provider' }).catch(() => null);
+                let model = await invoke<string | null>('get_setting', { key: 'ai_model' }).catch(() => null);
                 if (!provider) provider = localStorage.getItem('taskrails_ai_provider');
                 if (!model) model = localStorage.getItem('taskrails_ai_model');
                 
                 if (provider && available.includes(provider)) {
                     setCurrentProvider(provider);
                     if (model) setCurrentModel(model);
-                } else if (available.length > 0) {
-                    setCurrentProvider(available[0]);
-                    setCurrentModel(PROVIDER_MODELS[available[0]]?.[0] || '');
                 }
                 
                 const savedLang = localStorage.getItem('taskrails_output_language');
@@ -90,6 +66,18 @@ export function useProjectChat({ projectConfig, setProjectConfig }: UseProjectCh
             }
         };
         loadSettings();
+
+        // Listen for global sync
+        const unlisten = listen('ai-settings-changed', (event: any) => {
+            const { provider, model, language } = event.payload;
+            if (provider) setCurrentProvider(provider);
+            if (model) setCurrentModel(model);
+            if (language) setOutputLanguage(language);
+        });
+
+        return () => {
+            unlisten.then((f: any) => f());
+        };
     }, []);
 
     // Save AI Settings on change
@@ -160,8 +148,9 @@ ${completenessCheck.missingRequired.includes('專案名稱') ? '- 「這個專�
                 setProjectConfig(prev => ({
                     ...prev,
                     ...parsedConfig,
-                    techStack: parsedConfig.techStack?.length ? parsedConfig.techStack : prev.techStack,
-                    features: parsedConfig.features?.length ? parsedConfig.features : prev.features,
+                    // 確保陣列類型的欄位在 parsedConfig 中不存在時不被覆蓋
+                    techStack: parsedConfig.techStack || prev.techStack,
+                    features: parsedConfig.features || prev.features,
                     generatedAgents: parsedConfig.generatedAgents || prev.generatedAgents,
                     generatedDiagrams: parsedConfig.generatedDiagrams || prev.generatedDiagrams,
                     generatedTasks: parsedConfig.generatedTasks || prev.generatedTasks

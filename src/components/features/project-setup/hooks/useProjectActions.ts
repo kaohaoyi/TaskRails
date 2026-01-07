@@ -444,6 +444,35 @@ export function useProjectActions({
         }
     };
     
+    const handleInjectTasks = async () => {
+        if (!projectConfig.generatedTasks || projectConfig.generatedTasks.length === 0) {
+            setMessages(msgs => [...msgs, { role: 'assistant', content: '⚠️ 目前沒有待注入的任務。請先讓 AI 生成任務清單。' }]);
+            return;
+        }
+
+        setIsDeploying(true);
+        try {
+            for (const task of projectConfig.generatedTasks) {
+                await invoke('create_task', {
+                    task: {
+                        id: task.id || `TSK-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                        title: task.title,
+                        description: task.description,
+                        status: 'todo',
+                        priority: task.priority || '3',
+                        phase: task.phase,
+                        tag: 'AI-Generated'
+                    }
+                });
+            }
+            setMessages(msgs => [...msgs, { role: 'assistant', content: `✅ 成功注入 ${projectConfig.generatedTasks?.length} 個任務到看板！` }]);
+        } catch (err) {
+            setMessages(msgs => [...msgs, { role: 'assistant', content: `❌ 任務注入失敗：${err}` }]);
+        } finally {
+            setIsDeploying(false);
+        }
+    };
+
     // Agent Handlers
     const handleEditAgent = (index: number) => setEditingAgentIndex(index);
     
@@ -496,6 +525,7 @@ export function useProjectActions({
         handleEditAgent,
         handleSaveAgent,
         handleDeleteAgent,
-        handleAddAgent
+        handleAddAgent,
+        handleInjectTasks
     };
 }

@@ -1,9 +1,28 @@
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::error::Error;
 
 const DEFAULT_LM_STUDIO_URL: &str = "http://localhost:1234/v1/chat/completions";
+
+fn normalize_chat_url(url: &str) -> String {
+    let trimmed = url.trim_end_matches('/');
+    if trimmed.contains("/v1/chat/completions") {
+        return trimmed.to_string();
+    }
+
+    // If it only has /v1, add /chat/completions
+    if trimmed.ends_with("/v1") {
+        return format!("{}/chat/completions", trimmed);
+    }
+
+    // If it doesn't have /v1 at all, assume it needs it (LM Studio style)
+    if !trimmed.contains("/v1") {
+        return format!("{}/v1/chat/completions", trimmed);
+    }
+
+    // Fallback
+    trimmed.to_string()
+}
 
 #[derive(Clone)]
 pub struct LocalLlmClient {
@@ -26,26 +45,12 @@ struct ChatRequest {
     stream: bool,
 }
 
-#[derive(Deserialize)]
-struct ChatResponse {
-    choices: Vec<Choice>,
-}
-
-#[derive(Deserialize)]
-struct Choice {
-    message: MessageContent,
-}
-
-#[derive(Deserialize)]
-struct MessageContent {
-    content: String,
-}
-
 impl LocalLlmClient {
     pub fn new(base_url: Option<String>, model: Option<String>) -> Self {
+        let url = base_url.unwrap_or_else(|| DEFAULT_LM_STUDIO_URL.to_string());
         Self {
             client: Client::new(),
-            base_url: base_url.unwrap_or_else(|| DEFAULT_LM_STUDIO_URL.to_string()),
+            base_url: normalize_chat_url(&url),
             // Default model name. Found 'qwen2.5-7b-instruct' in user logs.
             model: model.unwrap_or_else(|| "qwen2.5-7b-instruct".to_string()),
         }
@@ -92,12 +97,17 @@ impl LocalLlmClient {
             return Err(format!("LM Studio 請求失敗 ({}): {}", status, body).into());
         }
 
-        let chat_resp: ChatResponse = resp.json().await?;
+        let chat_resp: serde_json::Value = resp.json().await?;
 
-        if let Some(choice) = chat_resp.choices.first() {
-            Ok(choice.message.content.clone())
+        // Check for error field in the JSON response even if status was 200
+        if let Some(err) = chat_resp.get("error") {
+            return Err(format!("LM Studio Error: {}", err).into());
+        }
+
+        if let Some(content) = chat_resp["choices"][0]["message"]["content"].as_str() {
+            Ok(content.to_string())
         } else {
-            Err("No content received".into())
+            Err(format!("Invalid response format: {:?}", chat_resp).into())
         }
     }
 
@@ -123,10 +133,17 @@ impl LocalLlmClient {
 
     /// Try to get the first available model from LM Studio
     async fn get_current_model(&self) -> Option<String> {
-        let url = if self.base_url.ends_with("/chat/completions") {
-            self.base_url.replace("/chat/completions", "/models")
+        let url = if self.base_url.contains("/v1/chat/completions") {
+            self.base_url.replace("/v1/chat/completions", "/v1/models")
+        } else if self.base_url.ends_with("/v1") || self.base_url.ends_with("/v1/") {
+            let mut base = self.base_url.clone();
+            if !base.ends_with('/') {
+                base.push('/');
+            }
+            format!("{}models", base)
         } else {
-            "http://localhost:1234/v1/models".to_string()
+            // Fallback attempts
+            format!("{}/v1/models", self.base_url.trim_end_matches('/'))
         };
 
         #[derive(Deserialize)]
@@ -150,14 +167,16 @@ impl LocalLlmClient {
         }
     }
     pub async fn check_connection(&self) -> bool {
-        // Try to GET the base_url. Even if it returns 405 (Method Not Allowed) for a POST endpoint,
-        // it means the server is reachable.
-        // Or better, try to reach the models endpoint by stripping /chat/completions if present.
-        let url = if self.base_url.ends_with("/chat/completions") {
-            self.base_url.replace("/chat/completions", "/models")
+        let url = if self.base_url.contains("/v1/chat/completions") {
+            self.base_url.replace("/v1/chat/completions", "/v1/models")
+        } else if self.base_url.ends_with("/v1") || self.base_url.ends_with("/v1/") {
+            let mut base = self.base_url.clone();
+            if !base.ends_with('/') {
+                base.push('/');
+            }
+            format!("{}models", base)
         } else {
-            // Fallback
-            "http://localhost:1234/v1/models".to_string()
+            format!("{}/v1/models", self.base_url.trim_end_matches('/'))
         };
 
         match self.client.get(&url).send().await {
@@ -169,7 +188,6 @@ impl LocalLlmClient {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[tokio::test]
     async fn test_lm_studio_connection() {

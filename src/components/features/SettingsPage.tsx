@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BellRing, User, Globe, Shield, Terminal, Fingerprint, FolderSearch, Trash2 } from 'lucide-react';
+import { BellRing, User, Globe, Shield, Terminal, Fingerprint, FolderSearch, Trash2, Settings as SettingsIcon, Eye, EyeOff } from 'lucide-react';
 import clsx from 'clsx';
 import { useTranslation, setLanguage, getLanguage, LanguageCode } from '../../hooks/useTranslation';
 import { invoke } from '@tauri-apps/api/core';
@@ -15,6 +15,7 @@ export default function SettingsPage() {
     const [model, setModel] = useState('gpt-4o');
     const [endpoint, setEndpoint] = useState('');
     const [storedKeys, setStoredKeys] = useState<Record<string, string>>({});
+    const [showApiKey, setShowApiKey] = useState(false);
     const t = useTranslation().settings;
 
     const loadAllKeys = async () => {
@@ -106,10 +107,24 @@ export default function SettingsPage() {
         if (typeof invoke === 'undefined') return;
         if (confirm(`確定要刪除 ${t.ai.providers[provider as keyof typeof t.ai.providers]} 的金鑰嗎？`)) {
             try {
+                // 從 Tauri 後端刪除
                 await invoke('set_setting', { key: `ai_api_key_${provider}`, value: '' });
+                
+                // 同時從 localStorage 刪除 (關鍵修復！)
+                localStorage.removeItem(`taskrails_api_key_${provider}`);
+                
+                // 重新載入金鑰列表
                 await loadAllKeys();
+                
+                // 如果刪除的是當前選中的 provider，清空 apiKey 輸入框
+                if (provider === selectedProvider) {
+                    setApiKey('');
+                }
+                
+                alert('金鑰已刪除');
             } catch (err) {
                 console.error('Failed to delete key:', err);
+                alert('刪除失敗：' + String(err));
             }
         }
     };
@@ -294,13 +309,23 @@ export default function SettingsPage() {
                                 <Shield size={12} className="text-primary" />
                                 {t.ai.apiKey}
                             </label>
-                            <input 
-                                type="password" 
-                                value={apiKey}
-                                onChange={(e) => setApiKey(e.target.value)}
-                                placeholder="sk-..."
-                                className="w-full bg-black/40 border border-border-dark rounded-md px-4 py-2 text-sm text-white focus:outline-none focus:border-primary/50 font-mono"
-                            />
+                            <div className="relative">
+                                <input 
+                                    type={showApiKey ? "text" : "password"}
+                                    value={apiKey}
+                                    onChange={(e) => setApiKey(e.target.value)}
+                                    placeholder="sk-..."
+                                    className="w-full bg-black/40 border border-border-dark rounded-md pl-4 pr-12 py-2 text-sm text-white focus:outline-none focus:border-primary/50 font-mono"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowApiKey(!showApiKey)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                                    title={showApiKey ? "隱藏金鑰" : "顯示金鑰"}
+                                >
+                                    {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
                             <p className="text-[10px] text-gray-600 mt-1 italic">API Key 僅存儲於本地加密資料庫，不會上傳至任何雲端。</p>
                         </div>
 
@@ -318,8 +343,8 @@ export default function SettingsPage() {
                                 <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{t.ai.storedKeys}</h4>
                                 <div className="space-y-2">
                                     {Object.entries(storedKeys).filter(([_, val]) => val).map(([prov, val]) => (
-                                        <div key={prov} className="flex items-center justify-between p-3 bg-black/20 border border-white/5 rounded-lg group">
-                                            <div className="flex flex-col">
+                                        <div key={prov} className="flex items-center justify-between p-3 bg-black/20 border border-white/5 rounded-lg hover:border-white/10 transition-all">
+                                            <div className="flex flex-col flex-1">
                                                 <span className="text-xs font-bold text-gray-300">
                                                     {t.ai.providers[prov as keyof typeof t.ai.providers] || prov}
                                                 </span>
@@ -327,13 +352,28 @@ export default function SettingsPage() {
                                                     {val.slice(0, 8)}••••••••••••{val.slice(-4)}
                                                 </span>
                                             </div>
-                                            <button 
-                                                onClick={() => handleDeleteKey(prov)}
-                                                className="p-2 text-gray-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                                                title={t.ai.delete}
-                                            >
-                                                <Trash2 size={14} />
-                                            </button>
+                                            <div className="flex items-center gap-1">
+                                                <button 
+                                                    onClick={() => {
+                                                        setSelectedProvider(prov);
+                                                        // 自動顯示金鑰以便編輯
+                                                        setShowApiKey(true);
+                                                        // 滾動到頁面頂部讓用戶看到輸入欄位
+                                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                                    }}
+                                                    className="p-2 text-gray-500 hover:text-primary hover:bg-primary/10 rounded-lg transition-all"
+                                                    title="編輯金鑰"
+                                                >
+                                                    <SettingsIcon size={14} />
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleDeleteKey(prov)}
+                                                    className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                                                    title={t.ai.delete}
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
